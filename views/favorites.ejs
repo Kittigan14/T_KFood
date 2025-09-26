@@ -1,0 +1,29 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+  <meta charset="UTF-8">
+  <title>สินค้าที่ชื่นชอบ</title>
+  <link rel="stylesheet" href="/css/style.css">
+</head>
+<body>
+  <div class="container">
+    <h2>❤️ สินค้าที่คุณถูกใจ</h2>
+
+    <div class="products">
+      <% if (favorites && favorites.length > 0) { %>
+        <% favorites.forEach(p => { %>
+          <div class="product-card">
+            <img src="/images/<%= p.image_url %>">
+            <div class="info">
+              <h3><%= p.name %></h3>
+              <p><%= p.price %> บาท</p>
+            </div>
+          </div>
+        <% }) %>
+      <% } else { %>
+        <p>ยังไม่มีสินค้าที่คุณถูกใจ</p>
+      <% } %>
+    </div>
+  </div>
+</body>
+</html>

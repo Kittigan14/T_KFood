@@ -1,0 +1,42 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+  <meta charset="UTF-8">
+  <title>ตะกร้าสินค้า</title>
+  <link rel="stylesheet" href="/css/style.css">
+</head>
+<body>
+  <div class="container">
+    <h2>🛒 ตะกร้าสินค้า</h2>
+
+    <% if (cart && cart.length > 0) { %>
+      <table class="cart-table">
+        <thead>
+          <tr>
+            <th>สินค้า</th>
+            <th>ราคา</th>
+            <th>จำนวน</th>
+            <th>รวม</th>
+          </tr>
+        </thead>
+        <tbody>
+          <% cart.forEach(item => { %>
+            <tr>
+              <td><%= item.name %></td>
+              <td><%= item.price %> บาท</td>
+              <td><%= item.quantity %></td>
+              <td><%= item.price * item.quantity %> บาท</td>
+            </tr>
+          <% }) %>
+        </tbody>
+      </table>
+      <div class="cart-total">
+        <strong>รวมทั้งหมด:</strong> <%= cart.reduce((sum, i) => sum + i.price * i.quantity, 0) %> บาท
+      </div>
+      <button class="btn-submit">สั่งซื้อ</button>
+    <% } else { %>
+      <p>ยังไม่มีสินค้าในตะกร้า</p>
+    <% } %>
+  </div>
+</body>
+</html>
