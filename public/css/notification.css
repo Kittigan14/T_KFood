@@ -143,34 +143,30 @@
     position: fixed;
     top: 20px;
     right: 20px;
-    padding: 15px 20px;
-    border-radius: 8px;
+    padding: 1rem 1.5rem;
+    border-radius: 6px;
     color: white;
     font-weight: 500;
-    z-index: 1000;
+    z-index: 3000;
     transform: translateX(100%);
     transition: transform 0.3s ease;
-    max-width: 400px;
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+    max-width: 350px;
 }
 
-.notification:not(.hidden) {
+.notification.show {
     transform: translateX(0);
 }
 
 .notification.success {
-    background-color: #10b981;
-    border-left: 4px solid #059669;
+    background: #4CAF50;
 }
 
 .notification.error {
-    background-color: #ef4444;
-    border-left: 4px solid #dc2626;
+    background: #f44336;
 }
 
 .notification.info {
-    background-color: #3b82f6;
-    border-left: 4px solid #2563eb;
+    background: #2196F3;
 }
 
 .notification.warning {

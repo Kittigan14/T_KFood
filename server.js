@@ -1,7 +1,7 @@
 const express = require('express');
 const sqlite3 = require('sqlite3').verbose();
 const path = require('path');
-const cors = require('cors');
+const cors = require("cors");
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const cookieParser = require('cookie-parser');
@@ -20,7 +20,10 @@ app.set('view engine', 'ejs');
 app.set('views', path.join(__dirname, 'views'));
 
 // Middleware
-app.use(cors());
+app.use(cors({
+    origin: "http://localhost:3000",
+    credentials: true
+}));
 app.use(express.json());
 app.use(express.urlencoded({
     extended: true
@@ -83,13 +86,73 @@ const authenticateToken = (req, res, next) => {
 };
 
 const authenticateAdmin = (req, res, next) => {
-    if (req.user.role !== 'admin') {
-        return res.status(403).json({
-            error: 'Admin access required'
+    const token = req.cookies.token;
+    if (!token) {
+        if (req.headers.accept && req.headers.accept.includes('application/json')) {
+            return res.status(401).json({
+                error: 'Access token required'
+            });
+        }
+        return res.redirect('/login');
+    }
+
+    jwt.verify(token, JWT_SECRET, (err, user) => {
+        if (err) {
+            if (req.headers.accept && req.headers.accept.includes('application/json')) {
+                return res.status(403).json({
+                    error: 'Invalid token'
+                });
+            }
+            return res.redirect('/login');
+        }
+
+        if (user.role !== 'admin') {
+            if (req.headers.accept && req.headers.accept.includes('application/json')) {
+                return res.status(403).json({
+                    error: 'Admin access required'
+                });
+            }
+            return res.redirect('/');
+        }
+
+        req.user = user;
+        next();
+    });
+};
+
+function authenticateAdminApi(req, res, next) {
+    const token = req.cookies.token;
+    if (!token) {
+        return res.status(401).json({
+            success: false,
+            error: "Access token required"
         });
     }
-    next();
-};
+    jwt.verify(token, JWT_SECRET, (err, user) => {
+        if (err) return res.status(403).json({
+            success: false,
+            error: "Invalid token"
+        });
+        if (user.role !== 'admin') {
+            return res.status(403).json({
+                success: false,
+                error: "Admin access required"
+            });
+        }
+        req.user = user;
+        next();
+    });
+}
+
+function authenticateAdminPage(req, res, next) {
+    const token = req.cookies.token;
+    if (!token) return res.redirect('/login');
+    jwt.verify(token, JWT_SECRET, (err, user) => {
+        if (err || user.role !== 'admin') return res.redirect('/login');
+        req.user = user;
+        next();
+    });
+}
 
 initializeDatabase();
 
@@ -108,6 +171,20 @@ function initializeDatabase() {
             address TEXT,
             role TEXT CHECK(role IN ('admin','customer')) DEFAULT 'customer',
             created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+        )
+    `);
+
+    db.run(`
+        CREATE TABLE IF NOT EXISTS Employees (
+            employee_id INTEGER PRIMARY KEY AUTOINCREMENT,
+            name TEXT NOT NULL,
+            email TEXT UNIQUE NOT NULL,
+            phone TEXT,
+            position TEXT NOT NULL,
+            salary REAL,
+            hire_date DATE NOT NULL,
+            created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+            updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
         )
     `);
 
@@ -331,6 +408,20 @@ function initializeDatabase() {
             )
         `);
 
+    db.run(`
+        CREATE TABLE IF NOT EXISTS System_Logs (
+            log_id INTEGER PRIMARY KEY AUTOINCREMENT,
+            user_id INTEGER,
+            action TEXT NOT NULL,
+            entity_type TEXT NOT NULL,
+            entity_id INTEGER,
+            details TEXT,
+            ip_address TEXT,
+            created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+            FOREIGN KEY (user_id) REFERENCES Users(customer_id)
+        )
+    `);
+
     console.log("✅ Database initialized.");
 }
 
@@ -441,12 +532,25 @@ app.post('/api/auth/register', (req, res) => {
 
 // Login
 app.post('/api/auth/login', (req, res) => {
-    const { email, password } = req.body;
+    const {
+        email,
+        password
+    } = req.body;
 
     db.get(`SELECT * FROM Users WHERE email = ?`, [email], (err, user) => {
-        if (err) return res.status(500).json({ success: false, error: "DB Error" });
+        if (err) {
+            console.error('Database error:', err);
+            return res.status(500).json({
+                success: false,
+                error: "Database error"
+            });
+        }
+
         if (!user || !bcrypt.compareSync(password, user.password)) {
-            return res.status(401).json({ success: false, error: "อีเมลหรือรหัสผ่านไม่ถูกต้อง" });
+            return res.status(401).json({
+                success: false,
+                error: "อีเมลหรือรหัสผ่านไม่ถูกต้อง"
+            });
         }
 
         const token = jwt.sign({
@@ -454,7 +558,9 @@ app.post('/api/auth/login', (req, res) => {
             name: user.name,
             email: user.email,
             role: user.role
-        }, JWT_SECRET, { expiresIn: '24h' });
+        }, JWT_SECRET, {
+            expiresIn: '24h'
+        });
 
         res.cookie("token", token, {
             httpOnly: true,
@@ -462,10 +568,21 @@ app.post('/api/auth/login', (req, res) => {
             maxAge: 24 * 60 * 60 * 1000
         });
 
-        res.json({ success: true });
+        // Determine redirect URL based on user role
+        const redirectTo = user.role === 'admin' ? '/admin' : '/';
+
+        res.json({
+            success: true,
+            redirectTo: redirectTo,
+            user: {
+                id: user.customer_id,
+                name: user.name,
+                email: user.email,
+                role: user.role
+            }
+        });
     });
 });
-
 
 app.get('/logout', (req, res) => {
     res.clearCookie('token');
@@ -488,11 +605,15 @@ app.get('/api/users', authenticateToken, authenticateAdmin, (req, res) => {
 app.get('/api/cart', (req, res) => {
     const token = req.cookies.token;
     if (!token) {
-        return res.status(401).json({ error: 'กรุณาเข้าสู่ระบบก่อน' });
+        return res.status(401).json({
+            error: 'กรุณาเข้าสู่ระบบก่อน'
+        });
     }
 
     jwt.verify(token, JWT_SECRET, (err, user) => {
-        if (err) return res.status(403).json({ error: 'Invalid token' });
+        if (err) return res.status(403).json({
+            error: 'Invalid token'
+        });
 
         const customer_id = user.customer_id;
         const query = `
@@ -504,13 +625,18 @@ app.get('/api/cart', (req, res) => {
             WHERE c.customer_id = ? AND p.status = 'available'
             ORDER BY ci.cart_item_id DESC
         `;
-        
+
         db.all(query, [customer_id], (err, rows) => {
             if (err) {
                 console.error('Cart query error:', err);
-                return res.status(500).json({ error: err.message });
+                return res.status(500).json({
+                    error: err.message
+                });
             }
-            res.json({ success: true, cart: rows });
+            res.json({
+                success: true,
+                cart: rows
+            });
         });
     });
 });
@@ -519,67 +645,100 @@ app.get('/api/cart', (req, res) => {
 app.post('/api/cart/add', (req, res) => {
     const token = req.cookies.token;
     if (!token) {
-        return res.status(401).json({ error: 'กรุณาเข้าสู่ระบบก่อน' });
+        return res.status(401).json({
+            error: 'กรุณาเข้าสู่ระบบก่อน'
+        });
     }
 
     jwt.verify(token, JWT_SECRET, (err, user) => {
-        if (err) return res.status(403).json({ error: 'Invalid token' });
+        if (err) return res.status(403).json({
+            error: 'Invalid token'
+        });
 
         // console.log("Decoded user from JWT:", user);
-        const { product_id, quantity = 1 } = req.body;
+        const {
+            product_id,
+            quantity = 1
+        } = req.body;
         const customer_id = user.customer_id;
 
         if (!product_id) {
-            return res.status(400).json({ error: 'ต้องระบุสินค้า' });
+            return res.status(400).json({
+                error: 'ต้องระบุสินค้า'
+            });
         }
 
         // First check if product exists and is available
-        db.get(`SELECT product_id, price FROM Products WHERE product_id = ? AND status = 'available'`, 
+        db.get(`SELECT product_id, price FROM Products WHERE product_id = ? AND status = 'available'`,
             [product_id], (err, product) => {
-            if (err) return res.status(500).json({ error: err.message });
-            if (!product) return res.status(404).json({ error: 'ไม่พบสินค้าหรือสินค้าไม่พร้อมจำหน่าย' });
+                if (err) return res.status(500).json({
+                    error: err.message
+                });
+                if (!product) return res.status(404).json({
+                    error: 'ไม่พบสินค้าหรือสินค้าไม่พร้อมจำหน่าย'
+                });
 
-            // Get or create cart
-            db.get(`SELECT cart_id FROM Carts WHERE customer_id = ?`, [customer_id], (err, cart) => {
-                if (err) return res.status(500).json({ error: err.message });
+                // Get or create cart
+                db.get(`SELECT cart_id FROM Carts WHERE customer_id = ?`, [customer_id], (err, cart) => {
+                    if (err) return res.status(500).json({
+                        error: err.message
+                    });
 
-                const ensureCart = (cart_id) => {
-                    // Check if item already exists in cart
-                    db.get(`SELECT cart_item_id, quantity FROM Cart_Items WHERE cart_id = ? AND product_id = ?`,
-                        [cart_id, product_id], (err, item) => {
-                        if (err) return res.status(500).json({ error: err.message });
+                    const ensureCart = (cart_id) => {
+                        // Check if item already exists in cart
+                        db.get(`SELECT cart_item_id, quantity FROM Cart_Items WHERE cart_id = ? AND product_id = ?`,
+                            [cart_id, product_id], (err, item) => {
+                                if (err) return res.status(500).json({
+                                    error: err.message
+                                });
 
-                        if (item) {
-                            // Update existing item
-                            db.run(`UPDATE Cart_Items SET quantity = quantity + ?, 
+                                if (item) {
+                                    // Update existing item
+                                    db.run(`UPDATE Cart_Items SET quantity = quantity + ?, 
                                     updated_at = CURRENT_TIMESTAMP WHERE cart_item_id = ?`,
-                                [quantity, item.cart_item_id], function (err) {
-                                if (err) return res.status(500).json({ error: err.message });
-                                res.json({ success: true, message: 'อัปเดตจำนวนสินค้าในตะกร้าแล้ว', updated: true });
-                            });
-                        } else {
-                            // Add new item
-                            db.run(`INSERT INTO Cart_Items (cart_id, product_id, quantity, price)
+                                        [quantity, item.cart_item_id],
+                                        function (err) {
+                                            if (err) return res.status(500).json({
+                                                error: err.message
+                                            });
+                                            res.json({
+                                                success: true,
+                                                message: 'อัปเดตจำนวนสินค้าในตะกร้าแล้ว',
+                                                updated: true
+                                            });
+                                        });
+                                } else {
+                                    // Add new item
+                                    db.run(`INSERT INTO Cart_Items (cart_id, product_id, quantity, price)
                                     VALUES (?, ?, ?, ?)`,
-                                [cart_id, product_id, quantity, product.price], function (err) {
-                                if (err) return res.status(500).json({ error: err.message });
-                                res.json({ success: true, message: 'เพิ่มสินค้าลงตะกร้าเรียบร้อย', added: true });
+                                        [cart_id, product_id, quantity, product.price],
+                                        function (err) {
+                                            if (err) return res.status(500).json({
+                                                error: err.message
+                                            });
+                                            res.json({
+                                                success: true,
+                                                message: 'เพิ่มสินค้าลงตะกร้าเรียบร้อย',
+                                                added: true
+                                            });
+                                        });
+                                }
                             });
-                        }
-                    });
-                };
+                    };
 
-                if (!cart) {
-                    // Create new cart
-                    db.run(`INSERT INTO Carts (customer_id) VALUES (?)`, [customer_id], function (err) {
-                        if (err) return res.status(500).json({ error: err.message });
-                        ensureCart(this.lastID);
-                    });
-                } else {
-                    ensureCart(cart.cart_id);
-                }
+                    if (!cart) {
+                        // Create new cart
+                        db.run(`INSERT INTO Carts (customer_id) VALUES (?)`, [customer_id], function (err) {
+                            if (err) return res.status(500).json({
+                                error: err.message
+                            });
+                            ensureCart(this.lastID);
+                        });
+                    } else {
+                        ensureCart(cart.cart_id);
+                    }
+                });
             });
-        });
     });
 });
 
@@ -587,47 +746,66 @@ app.post('/api/cart/add', (req, res) => {
 app.post('/api/cart/update', (req, res) => {
     const token = req.cookies.token;
     if (!token) {
-        return res.status(401).json({ error: 'กรุณาเข้าสู่ระบบก่อน' });
+        return res.status(401).json({
+            error: 'กรุณาเข้าสู่ระบบก่อน'
+        });
     }
 
     jwt.verify(token, JWT_SECRET, (err, user) => {
-        if (err) return res.status(403).json({ error: 'Invalid token' });
+        if (err) return res.status(403).json({
+            error: 'Invalid token'
+        });
 
-        const { itemId, quantity } = req.body;
+        const {
+            itemId,
+            quantity
+        } = req.body;
         const customer_id = user.customer_id;
 
         if (!itemId || quantity === undefined) {
-            return res.status(400).json({ error: 'ข้อมูลไม่ครบถ้วน' });
+            return res.status(400).json({
+                error: 'ข้อมูลไม่ครบถ้วน'
+            });
         }
 
         // Get user's cart
         db.get(`SELECT cart_id FROM Carts WHERE customer_id = ?`, [customer_id], (err, cart) => {
-            if (err) return res.status(500).json({ error: err.message });
-            if (!cart) return res.status(404).json({ error: 'ไม่พบตะกร้าสินค้า' });
+            if (err) return res.status(500).json({
+                error: err.message
+            });
+            if (!cart) return res.status(404).json({
+                error: 'ไม่พบตะกร้าสินค้า'
+            });
 
             if (quantity <= 0) {
                 // Remove item if quantity is 0 or negative
                 db.run(`DELETE FROM Cart_Items WHERE cart_id = ? AND product_id = ?`,
-                    [cart.cart_id, itemId], function (err) {
-                    if (err) return res.status(500).json({ error: err.message });
-                    res.json({ 
-                        success: true, 
-                        message: 'ลบสินค้าออกจากตะกร้าแล้ว', 
-                        removed: this.changes > 0 
+                    [cart.cart_id, itemId],
+                    function (err) {
+                        if (err) return res.status(500).json({
+                            error: err.message
+                        });
+                        res.json({
+                            success: true,
+                            message: 'ลบสินค้าออกจากตะกร้าแล้ว',
+                            removed: this.changes > 0
+                        });
                     });
-                });
             } else {
                 // Update quantity
                 db.run(`UPDATE Cart_Items SET quantity = ?, updated_at = CURRENT_TIMESTAMP 
                         WHERE cart_id = ? AND product_id = ?`,
-                    [quantity, cart.cart_id, itemId], function (err) {
-                    if (err) return res.status(500).json({ error: err.message });
-                    res.json({ 
-                        success: true, 
-                        message: 'อัปเดตจำนวนสินค้าแล้ว', 
-                        updated: this.changes > 0 
+                    [quantity, cart.cart_id, itemId],
+                    function (err) {
+                        if (err) return res.status(500).json({
+                            error: err.message
+                        });
+                        res.json({
+                            success: true,
+                            message: 'อัปเดตจำนวนสินค้าแล้ว',
+                            updated: this.changes > 0
+                        });
                     });
-                });
             }
         });
     });
@@ -637,28 +815,39 @@ app.post('/api/cart/update', (req, res) => {
 app.delete('/api/cart/remove/:id', (req, res) => {
     const token = req.cookies.token;
     if (!token) {
-        return res.status(401).json({ error: 'กรุณาเข้าสู่ระบบก่อน' });
+        return res.status(401).json({
+            error: 'กรุณาเข้าสู่ระบบก่อน'
+        });
     }
 
     jwt.verify(token, JWT_SECRET, (err, user) => {
-        if (err) return res.status(403).json({ error: 'Invalid token' });
+        if (err) return res.status(403).json({
+            error: 'Invalid token'
+        });
 
         const product_id = parseInt(req.params.id);
         const customer_id = user.customer_id;
 
         db.get(`SELECT cart_id FROM Carts WHERE customer_id = ?`, [customer_id], (err, cart) => {
-            if (err) return res.status(500).json({ error: err.message });
-            if (!cart) return res.status(404).json({ error: 'ไม่พบตะกร้าสินค้า' });
+            if (err) return res.status(500).json({
+                error: err.message
+            });
+            if (!cart) return res.status(404).json({
+                error: 'ไม่พบตะกร้าสินค้า'
+            });
 
             db.run(`DELETE FROM Cart_Items WHERE cart_id = ? AND product_id = ?`,
-                [cart.cart_id, product_id], function (err) {
-                if (err) return res.status(500).json({ error: err.message });
-                res.json({ 
-                    success: true, 
-                    message: 'ลบสินค้าออกจากตะกร้าเรียบร้อย', 
-                    removed: this.changes > 0 
+                [cart.cart_id, product_id],
+                function (err) {
+                    if (err) return res.status(500).json({
+                        error: err.message
+                    });
+                    res.json({
+                        success: true,
+                        message: 'ลบสินค้าออกจากตะกร้าเรียบร้อย',
+                        removed: this.changes > 0
+                    });
                 });
-            });
         });
     });
 });
@@ -666,11 +855,15 @@ app.delete('/api/cart/remove/:id', (req, res) => {
 app.get('/api/cart/count', (req, res) => {
     const token = req.cookies.token;
     if (!token) {
-        return res.json({ count: 0 });
+        return res.json({
+            count: 0
+        });
     }
 
     jwt.verify(token, JWT_SECRET, (err, user) => {
-        if (err) return res.json({ count: 0 });
+        if (err) return res.json({
+            count: 0
+        });
 
         const customer_id = user.customer_id;
         const query = `
@@ -679,10 +872,14 @@ app.get('/api/cart/count', (req, res) => {
             JOIN Carts c ON ci.cart_id = c.cart_id
             WHERE c.customer_id = ?
         `;
-        
+
         db.get(query, [customer_id], (err, row) => {
-            if (err) return res.json({ count: 0 });
-            res.json({ count: row.count || 0 });
+            if (err) return res.json({
+                count: 0
+            });
+            res.json({
+                count: row.count || 0
+            });
         });
     });
 });
@@ -691,11 +888,15 @@ app.get('/api/cart/count', (req, res) => {
 app.get('/api/favorites', (req, res) => {
     const token = req.cookies.token;
     if (!token) {
-        return res.status(401).json({ error: 'กรุณาเข้าสู่ระบบก่อน' });
+        return res.status(401).json({
+            error: 'กรุณาเข้าสู่ระบบก่อน'
+        });
     }
 
     jwt.verify(token, JWT_SECRET, (err, user) => {
-        if (err) return res.status(403).json({ error: 'Invalid token' });
+        if (err) return res.status(403).json({
+            error: 'Invalid token'
+        });
 
         const customer_id = user.customer_id;
         const query = `
@@ -705,13 +906,18 @@ app.get('/api/favorites', (req, res) => {
             WHERE f.customer_id = ? AND p.status = 'available'
             ORDER BY f.created_at DESC
         `;
-        
+
         db.all(query, [customer_id], (err, rows) => {
             if (err) {
                 console.error('Favorites query error:', err);
-                return res.status(500).json({ error: err.message });
+                return res.status(500).json({
+                    error: err.message
+                });
             }
-            res.json({ success: true, favorites: rows });
+            res.json({
+                success: true,
+                favorites: rows
+            });
         });
     });
 });
@@ -720,50 +926,65 @@ app.get('/api/favorites', (req, res) => {
 app.post('/api/favorites/add/:id', (req, res) => {
     const token = req.cookies.token;
     if (!token) {
-        return res.status(401).json({ error: 'กรุณาเข้าสู่ระบบก่อน' });
+        return res.status(401).json({
+            error: 'กรุณาเข้าสู่ระบบก่อน'
+        });
     }
 
     jwt.verify(token, JWT_SECRET, (err, user) => {
-        if (err) return res.status(403).json({ error: 'Invalid token' });
+        if (err) return res.status(403).json({
+            error: 'Invalid token'
+        });
 
         const product_id = parseInt(req.params.id);
         const customer_id = user.customer_id;
 
         if (!product_id || isNaN(product_id)) {
-            return res.status(400).json({ error: 'รหัสสินค้าไม่ถูกต้อง' });
+            return res.status(400).json({
+                error: 'รหัสสินค้าไม่ถูกต้อง'
+            });
         }
 
         // Check if product exists
-        db.get(`SELECT product_id FROM Products WHERE product_id = ? AND status = 'available'`, 
+        db.get(`SELECT product_id FROM Products WHERE product_id = ? AND status = 'available'`,
             [product_id], (err, product) => {
-            if (err) return res.status(500).json({ error: err.message });
-            if (!product) return res.status(404).json({ error: 'ไม่พบสินค้า' });
-
-            // Check if already in favorites
-            db.get(`SELECT favorite_id FROM Favorites WHERE customer_id = ? AND product_id = ?`,
-                [customer_id, product_id], (err, row) => {
-                if (err) return res.status(500).json({ error: err.message });
-
-                if (row) {
-                    return res.json({ 
-                        success: true, 
-                        message: 'สินค้าอยู่ใน Favorites อยู่แล้ว',
-                        already_exists: true 
-                    });
-                }
-
-                // Add to favorites
-                db.run(`INSERT INTO Favorites (customer_id, product_id) VALUES (?, ?)`,
-                    [customer_id, product_id], function (err) {
-                    if (err) return res.status(500).json({ error: err.message });
-                    res.json({ 
-                        success: true, 
-                        message: 'เพิ่มเป็นสินค้าที่ชอบเรียบร้อย',
-                        favorite_id: this.lastID 
-                    });
+                if (err) return res.status(500).json({
+                    error: err.message
                 });
+                if (!product) return res.status(404).json({
+                    error: 'ไม่พบสินค้า'
+                });
+
+                // Check if already in favorites
+                db.get(`SELECT favorite_id FROM Favorites WHERE customer_id = ? AND product_id = ?`,
+                    [customer_id, product_id], (err, row) => {
+                        if (err) return res.status(500).json({
+                            error: err.message
+                        });
+
+                        if (row) {
+                            return res.json({
+                                success: true,
+                                message: 'สินค้าอยู่ใน Favorites อยู่แล้ว',
+                                already_exists: true
+                            });
+                        }
+
+                        // Add to favorites
+                        db.run(`INSERT INTO Favorites (customer_id, product_id) VALUES (?, ?)`,
+                            [customer_id, product_id],
+                            function (err) {
+                                if (err) return res.status(500).json({
+                                    error: err.message
+                                });
+                                res.json({
+                                    success: true,
+                                    message: 'เพิ่มเป็นสินค้าที่ชอบเรียบร้อย',
+                                    favorite_id: this.lastID
+                                });
+                            });
+                    });
             });
-        });
     });
 });
 
@@ -771,24 +992,31 @@ app.post('/api/favorites/add/:id', (req, res) => {
 app.delete('/api/favorites/remove/:id', (req, res) => {
     const token = req.cookies.token;
     if (!token) {
-        return res.status(401).json({ error: 'กรุณาเข้าสู่ระบบก่อน' });
+        return res.status(401).json({
+            error: 'กรุณาเข้าสู่ระบบก่อน'
+        });
     }
 
     jwt.verify(token, JWT_SECRET, (err, user) => {
-        if (err) return res.status(403).json({ error: 'Invalid token' });
+        if (err) return res.status(403).json({
+            error: 'Invalid token'
+        });
 
         const product_id = parseInt(req.params.id);
         const customer_id = user.customer_id;
 
         db.run(`DELETE FROM Favorites WHERE customer_id = ? AND product_id = ?`,
-            [customer_id, product_id], function (err) {
-            if (err) return res.status(500).json({ error: err.message });
-            res.json({ 
-                success: true, 
-                message: 'ลบออกจากรายการโปรดเรียบร้อย',
-                removed: this.changes > 0 
+            [customer_id, product_id],
+            function (err) {
+                if (err) return res.status(500).json({
+                    error: err.message
+                });
+                res.json({
+                    success: true,
+                    message: 'ลบออกจากรายการโปรดเรียบร้อย',
+                    removed: this.changes > 0
+                });
             });
-        });
     });
 });
 
@@ -796,35 +1024,47 @@ app.delete('/api/favorites/remove/:id', (req, res) => {
 app.get('/api/favorites/count', (req, res) => {
     const token = req.cookies.token;
     if (!token) {
-        return res.json({ count: 0 });
+        return res.json({
+            count: 0
+        });
     }
 
     jwt.verify(token, JWT_SECRET, (err, user) => {
-        if (err) return res.json({ count: 0 });
+        if (err) return res.json({
+            count: 0
+        });
 
         const customer_id = user.customer_id;
         db.get(`SELECT COUNT(*) as count FROM Favorites WHERE customer_id = ?`,
             [customer_id], (err, row) => {
-            if (err) return res.json({ count: 0 });
-            res.json({ count: row.count || 0 });
-        });
+                if (err) return res.json({
+                    count: 0
+                });
+                res.json({
+                    count: row.count || 0
+                });
+            });
     });
 });
 
 app.get("/coupons", (req, res) => {
-  res.render("coupons"); 
+    res.render("coupons");
 });
 
 app.get('/api/coupons', (req, res) => {
-  const token = req.cookies.token;
-  if (!token) return res.status(401).json({ error: 'กรุณาเข้าสู่ระบบก่อน' });
+    const token = req.cookies.token;
+    if (!token) return res.status(401).json({
+        error: 'กรุณาเข้าสู่ระบบก่อน'
+    });
 
-  jwt.verify(token, JWT_SECRET, (err, user) => {
-    if (err) return res.status(403).json({ error: 'Invalid token' });
+    jwt.verify(token, JWT_SECRET, (err, user) => {
+        if (err) return res.status(403).json({
+            error: 'Invalid token'
+        });
 
-    const customer_id = user.customer_id;
+        const customer_id = user.customer_id;
 
-    const query = `
+        const query = `
       SELECT cc.coupon_id, cc.status, cc.expires_at, p.promo_code, p.name, p.description
       FROM Customer_Coupons cc
       JOIN Promotions p ON cc.promotion_id = p.promotion_id
@@ -832,70 +1072,102 @@ app.get('/api/coupons', (req, res) => {
       AND (cc.expires_at IS NULL OR cc.expires_at >= datetime('now'))
     `;
 
-    db.all(query, [customer_id], (err, rows) => {
-      if (err) return res.status(500).json({ error: err.message });
+        db.all(query, [customer_id], (err, rows) => {
+            if (err) return res.status(500).json({
+                error: err.message
+            });
 
-      res.json({
-        success: true,
-        coupons: rows
-      });
+            res.json({
+                success: true,
+                coupons: rows
+            });
+        });
     });
-  });
 });
 
 // Claim coupon (insert into Customer_Coupons)
 app.post('/api/coupons/claim', (req, res) => {
-  const token = req.cookies.token;
-  if (!token) return res.status(401).json({ success: false, message: 'กรุณาเข้าสู่ระบบก่อน' });
+    const token = req.cookies.token;
+    if (!token) return res.status(401).json({
+        success: false,
+        message: 'กรุณาเข้าสู่ระบบก่อน'
+    });
 
-  jwt.verify(token, JWT_SECRET, (err, user) => {
-    if (err) return res.status(403).json({ success: false, message: 'Token ไม่ถูกต้อง' });
+    jwt.verify(token, JWT_SECRET, (err, user) => {
+        if (err) return res.status(403).json({
+            success: false,
+            message: 'Token ไม่ถูกต้อง'
+        });
 
-    const { promotion_id } = req.body;
-    const customer_id = user.customer_id;
+        const {
+            promotion_id
+        } = req.body;
+        const customer_id = user.customer_id;
 
-    if (!promotion_id) {
-      return res.status(400).json({ success: false, message: 'promotion_id ไม่ถูกต้อง' });
-    }
-
-    const checkQuery = `SELECT * FROM Customer_Coupons WHERE promotion_id = ? AND customer_id = ?`;
-    db.get(checkQuery, [promotion_id, customer_id], (err, row) => {
-      if (err) return res.status(500).json({ success: false, message: err.message });
-
-      if (row) {
-        return res.json({ success: false, message: 'คุณรับคูปองนี้ไปแล้ว' });
-      }
-
-      const promoQuery = `SELECT * FROM Promotions WHERE promotion_id = ?`;
-      db.get(promoQuery, [promotion_id], (err, promotion) => {
-        if (err || !promotion) {
-          return res.status(404).json({ success: false, message: 'ไม่พบโปรโมชั่น' });
+        if (!promotion_id) {
+            return res.status(400).json({
+                success: false,
+                message: 'promotion_id ไม่ถูกต้อง'
+            });
         }
 
-        const insertQuery = `
+        const checkQuery = `SELECT * FROM Customer_Coupons WHERE promotion_id = ? AND customer_id = ?`;
+        db.get(checkQuery, [promotion_id, customer_id], (err, row) => {
+            if (err) return res.status(500).json({
+                success: false,
+                message: err.message
+            });
+
+            if (row) {
+                return res.json({
+                    success: false,
+                    message: 'คุณรับคูปองนี้ไปแล้ว'
+                });
+            }
+
+            const promoQuery = `SELECT * FROM Promotions WHERE promotion_id = ?`;
+            db.get(promoQuery, [promotion_id], (err, promotion) => {
+                if (err || !promotion) {
+                    return res.status(404).json({
+                        success: false,
+                        message: 'ไม่พบโปรโมชั่น'
+                    });
+                }
+
+                const insertQuery = `
           INSERT INTO Customer_Coupons (customer_id, promotion_id, status, expires_at) 
           VALUES (?, ?, 'available', ?)
         `;
-        db.run(insertQuery, [customer_id, promotion_id, promotion.end_date], function (err) {
-          if (err) return res.status(500).json({ success: false, message: err.message });
+                db.run(insertQuery, [customer_id, promotion_id, promotion.end_date], function (err) {
+                    if (err) return res.status(500).json({
+                        success: false,
+                        message: err.message
+                    });
 
-          res.json({ success: true, message: 'รับคูปองสำเร็จแล้ว!' });
+                    res.json({
+                        success: true,
+                        message: 'รับคูปองสำเร็จแล้ว!'
+                    });
+                });
+            });
         });
-      });
     });
-  });
 });
 
 app.get('/api/coupons/available', (req, res) => {
-  const token = req.cookies.token;
-  if (!token) return res.status(401).json({ error: 'กรุณาเข้าสู่ระบบก่อน' });
+    const token = req.cookies.token;
+    if (!token) return res.status(401).json({
+        error: 'กรุณาเข้าสู่ระบบก่อน'
+    });
 
-  jwt.verify(token, JWT_SECRET, (err, user) => {
-    if (err) return res.status(403).json({ error: 'Invalid token' });
+    jwt.verify(token, JWT_SECRET, (err, user) => {
+        if (err) return res.status(403).json({
+            error: 'Invalid token'
+        });
 
-    const customer_id = user.customer_id;
+        const customer_id = user.customer_id;
 
-    const query = `
+        const query = `
       SELECT cc.coupon_id, cc.status, cc.expires_at, 
              p.promotion_id, p.promo_code, p.name, p.description, 
              p.type, p.discount_value, p.min_order_amount, p.max_discount_amount
@@ -909,15 +1181,17 @@ app.get('/api/coupons/available', (req, res) => {
         AND (cc.expires_at IS NULL OR cc.expires_at >= datetime('now'))
     `;
 
-    db.all(query, [customer_id], (err, rows) => {
-      if (err) return res.status(500).json({ error: err.message });
+        db.all(query, [customer_id], (err, rows) => {
+            if (err) return res.status(500).json({
+                error: err.message
+            });
 
-      res.json({
-        success: true,
-        coupons: rows
-      });
+            res.json({
+                success: true,
+                coupons: rows
+            });
+        });
     });
-  });
 });
 
 // Get all active promotions
@@ -946,10 +1220,14 @@ app.get('/api/promotions/active', (req, res) => {
 // Validate promo code
 app.post('/api/promotions/validate', (req, res) => {
     const token = req.cookies.token;
-    if (!token) return res.status(401).json({ error: 'กรุณาเข้าสู่ระบบก่อน' });
+    if (!token) return res.status(401).json({
+        error: 'กรุณาเข้าสู่ระบบก่อน'
+    });
 
     jwt.verify(token, JWT_SECRET, (err, user) => {
-        if (err) return res.status(403).json({ error: 'Invalid token' });
+        if (err) return res.status(403).json({
+            error: 'Invalid token'
+        });
 
         const {
             promo_code,
@@ -1046,16 +1324,25 @@ app.post('/api/promotions/validate', (req, res) => {
 
 app.post('/api/coupons/use', (req, res) => {
     const token = req.cookies.token;
-    if (!token) return res.status(401).json({ error: 'กรุณาเข้าสู่ระบบก่อน' });
+    if (!token) return res.status(401).json({
+        error: 'กรุณาเข้าสู่ระบบก่อน'
+    });
 
     jwt.verify(token, JWT_SECRET, (err, user) => {
-        if (err) return res.status(403).json({ error: 'Invalid token' });
+        if (err) return res.status(403).json({
+            error: 'Invalid token'
+        });
 
-        const { promo_code, order_amount } = req.body;
+        const {
+            promo_code,
+            order_amount
+        } = req.body;
         const customer_id = user.customer_id;
 
         if (!promo_code) {
-            return res.status(400).json({ error: 'กรุณาระบุรหัสคูปอง' });
+            return res.status(400).json({
+                error: 'กรุณาระบุรหัสคูปอง'
+            });
         }
 
         // Get coupon details first
@@ -1069,8 +1356,12 @@ app.post('/api/coupons/use', (req, res) => {
         `;
 
         db.get(getCouponQuery, [customer_id, promo_code], (err, coupon) => {
-            if (err) return res.status(500).json({ error: err.message });
-            if (!coupon) return res.status(404).json({ error: 'ไม่พบคูปองที่ใช้ได้' });
+            if (err) return res.status(500).json({
+                error: err.message
+            });
+            if (!coupon) return res.status(404).json({
+                error: 'ไม่พบคูปองที่ใช้ได้'
+            });
 
             // Mark coupon as used
             const updateQuery = `
@@ -1079,8 +1370,10 @@ app.post('/api/coupons/use', (req, res) => {
                 WHERE coupon_id = ? AND customer_id = ?
             `;
 
-            db.run(updateQuery, [coupon.coupon_id, customer_id], function(err) {
-                if (err) return res.status(500).json({ error: err.message });
+            db.run(updateQuery, [coupon.coupon_id, customer_id], function (err) {
+                if (err) return res.status(500).json({
+                    error: err.message
+                });
 
                 const discount = calculateDiscount(coupon, order_amount, []);
 
@@ -1096,21 +1389,24 @@ app.post('/api/coupons/use', (req, res) => {
 
 // Temporary endpoint to insert test promotions
 app.get('/api/test/insert-promotions', (req, res) => {
-  const testPromotions = [
-    ['ส่วนลด 20%', 'ลด 20% สำหรับการสั่งซื้อครั้งแรก', 'percentage', 20, null, null, 200, 100, 100, 1, 'NEW20'],
-    ['ลด 50 บาท', 'ลดทันที 50 บาท เมื่อสั่งอาหารครบ 300 บาท', 'fixed_amount', 50, null, null, 300, null, null, null, 'SAVE50']
-  ];
+    const testPromotions = [
+        ['ส่วนลด 20%', 'ลด 20% สำหรับการสั่งซื้อครั้งแรก', 'percentage', 20, null, null, 200, 100, 100, 1, 'NEW20'],
+        ['ลด 50 บาท', 'ลดทันที 50 บาท เมื่อสั่งอาหารครบ 300 บาท', 'fixed_amount', 50, null, null, 300, null, null, null, 'SAVE50']
+    ];
 
-  const stmt = db.prepare(`
+    const stmt = db.prepare(`
     INSERT OR REPLACE INTO Promotions 
     (name, description, type, discount_value, buy_quantity, get_quantity, min_order_amount, max_discount_amount, usage_limit, usage_per_customer, start_date, end_date, status, promo_code) 
     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, datetime('now'), datetime('now', '+1 year'), 'active', ?)
   `);
 
-  testPromotions.forEach(promo => stmt.run(promo));
-  stmt.finalize();
+    testPromotions.forEach(promo => stmt.run(promo));
+    stmt.finalize();
 
-  res.json({ success: true, message: 'Test promotions inserted' });
+    res.json({
+        success: true,
+        message: 'Test promotions inserted'
+    });
 });
 
 // Calculate discount function
@@ -1259,6 +1555,1146 @@ app.post('/api/products', authenticateToken, authenticateAdmin, (req, res) => {
     );
 });
 
+app.get('/admin', authenticateAdminPage, (req, res) => {
+    res.render('admin');
+});
+
+// Create admin user route (for initial setup)
+app.post('/api/admin/create-admin', (req, res) => {
+    const {
+        email,
+        password,
+        name
+    } = req.body;
+
+    if (!email || !password || !name) {
+        return res.status(400).json({
+            error: 'All fields required'
+        });
+    }
+
+    // Check if admin already exists
+    db.get('SELECT * FROM Users WHERE role = "admin"', [], (err, admin) => {
+        if (err) return res.status(500).json({
+            error: err.message
+        });
+
+        if (admin) {
+            return res.status(400).json({
+                error: 'Admin user already exists'
+            });
+        }
+
+        const hashedPassword = bcrypt.hashSync(password, 10);
+
+        db.run(
+            'INSERT INTO Users (name, email, password, role) VALUES (?, ?, ?, ?)',
+            [name, email, hashedPassword, 'admin'],
+            function (err) {
+                if (err) {
+                    if (err.message.includes('UNIQUE constraint failed')) {
+                        return res.status(400).json({
+                            error: 'Email already exists'
+                        });
+                    }
+                    return res.status(500).json({
+                        error: err.message
+                    });
+                }
+
+                res.json({
+                    success: true,
+                    message: 'Admin user created successfully',
+                    admin_id: this.lastID
+                });
+            }
+        );
+    });
+});
+
+// Enhanced dashboard statistics with revenue
+app.get('/api/admin/stats/revenue', authenticateAdmin, (req, res) => {
+    const today = new Date().toISOString().split('T')[0];
+
+    const queries = {
+        today: `
+            SELECT COALESCE(SUM(final_amount), 0) as revenue, COUNT(*) as orders
+            FROM Orders 
+            WHERE DATE(created_at) = ? AND order_status != 'cancelled'
+        `,
+        week: `
+            SELECT COALESCE(SUM(final_amount), 0) as revenue, COUNT(*) as orders
+            FROM Orders 
+            WHERE DATE(created_at) >= DATE('now', '-7 days') AND order_status != 'cancelled'
+        `,
+        month: `
+            SELECT COALESCE(SUM(final_amount), 0) as revenue, COUNT(*) as orders
+            FROM Orders 
+            WHERE DATE(created_at) >= DATE('now', 'start of month') AND order_status != 'cancelled'
+        `
+    };
+
+    db.get(queries.today, [today], (err, todayData) => {
+        if (err) return res.status(500).json({
+            error: err.message
+        });
+
+        db.get(queries.week, [], (err, weekData) => {
+            if (err) return res.status(500).json({
+                error: err.message
+            });
+
+            db.get(queries.month, [], (err, monthData) => {
+                if (err) return res.status(500).json({
+                    error: err.message
+                });
+
+                res.json({
+                    success: true,
+                    stats: {
+                        today: todayData,
+                        week: weekData,
+                        month: monthData
+                    }
+                });
+            });
+        });
+    });
+});
+
+app.get('/api/admin/stats/orders', authenticateAdmin, (req, res) => {
+    db.get(`SELECT COUNT(*) as total FROM Orders`, [], (err, row) => {
+        if (err) return res.status(500).json({
+            error: err.message
+        });
+        res.json({
+            success: true,
+            total: row.total || 0
+        });
+    });
+});
+
+app.get('/api/admin/stats/products', authenticateAdmin, (req, res) => {
+    db.get(`SELECT COUNT(*) as total FROM Products`, [], (err, row) => {
+        if (err) return res.status(500).json({
+            error: err.message
+        });
+        res.json({
+            success: true,
+            total: row.total || 0
+        });
+    });
+});
+
+app.get('/api/admin/stats/members', authenticateAdmin, (req, res) => {
+    db.get(`SELECT COUNT(*) as total FROM Users WHERE role = 'customer'`, [], (err, row) => {
+        if (err) return res.status(500).json({
+            error: err.message
+        });
+        res.json({
+            success: true,
+            total: row.total || 0
+        });
+    });
+});
+
+app.get('/api/admin/orders/recent', authenticateAdmin, (req, res) => {
+    const query = `
+        SELECT o.*, u.name as customer_name 
+        FROM Orders o 
+        JOIN Users u ON o.customer_id = u.customer_id 
+        ORDER BY o.created_at DESC 
+        LIMIT 5
+    `;
+
+    db.all(query, [], (err, rows) => {
+        if (err) return res.status(500).json({
+            error: err.message
+        });
+        res.json({
+            success: true,
+            orders: rows
+        });
+    });
+});
+
+// Enhanced orders with filtering
+app.get('/api/admin/orders/filter', authenticateAdmin, (req, res) => {
+    const {
+        status,
+        date,
+        customer
+    } = req.query;
+    let query = `
+        SELECT o.*, u.name as customer_name, u.email as customer_email
+        FROM Orders o 
+        JOIN Users u ON o.customer_id = u.customer_id 
+        WHERE 1=1
+    `;
+    let params = [];
+
+    if (status) {
+        query += ' AND o.order_status = ?';
+        params.push(status);
+    }
+
+    if (date) {
+        query += ' AND DATE(o.created_at) = ?';
+        params.push(date);
+    }
+
+    if (customer) {
+        query += ' AND (u.name LIKE ? OR u.email LIKE ?)';
+        params.push(`%${customer}%`, `%${customer}%`);
+    }
+
+    query += ' ORDER BY o.created_at DESC LIMIT 100';
+
+    db.all(query, params, (err, rows) => {
+        if (err) return res.status(500).json({
+            error: err.message
+        });
+        res.json({
+            success: true,
+            orders: rows
+        });
+    });
+});
+
+// Bulk order status update
+app.put('/api/admin/orders/bulk-status', authenticateAdmin, (req, res) => {
+    const {
+        orderIds,
+        status
+    } = req.body;
+
+    if (!orderIds || !Array.isArray(orderIds) || !status) {
+        return res.status(400).json({
+            error: 'Invalid request data'
+        });
+    }
+
+    const validStatuses = ['pending', 'accepted', 'cooking', 'delivering', 'completed', 'cancelled'];
+    if (!validStatuses.includes(status)) {
+        return res.status(400).json({
+            error: 'Invalid status'
+        });
+    }
+
+    const placeholders = orderIds.map(() => '?').join(',');
+    const query = `
+        UPDATE Orders 
+        SET order_status = ?, updated_at = CURRENT_TIMESTAMP 
+        WHERE order_id IN (${placeholders})
+    `;
+
+    db.run(query, [status, ...orderIds], function (err) {
+        if (err) return res.status(500).json({
+            error: err.message
+        });
+
+        res.json({
+            success: true,
+            message: `${this.changes} orders updated successfully`,
+            updated_count: this.changes
+        });
+    });
+});
+
+app.get('/api/admin/products', authenticateAdminApi, (req, res) => {
+    const query = `
+        SELECT p.*, c.name as category_name 
+        FROM Products p 
+        LEFT JOIN Categories c ON p.category_id = c.category_id 
+        ORDER BY p.created_at DESC
+    `;
+
+    db.all(query, [], (err, rows) => {
+        if (err) return res.status(500).json({
+            error: err.message
+        });
+        res.json({
+            success: true,
+            products: rows
+        });
+    });
+});
+
+// Advanced product search and filtering
+app.get('/api/admin/products/search', authenticateAdminApi, (req, res) => {
+    const {
+        q,
+        category,
+        status,
+        min_price,
+        max_price
+    } = req.query;
+
+    let query = `
+    SELECT p.*, c.name as category_name
+    FROM Products p
+    LEFT JOIN Categories c ON p.category_id = c.category_id
+    WHERE 1=1
+  `;
+    let params = [];
+
+    if (q) {
+        query += ' AND (p.name LIKE ? OR p.description LIKE ?)';
+        params.push(`%${q}%`, `%${q}%`);
+    }
+
+    if (category) {
+        query += ' AND p.category_id = ?';
+        params.push(category);
+    }
+
+    if (status) {
+        query += ' AND p.status = ?';
+        params.push(status);
+    }
+
+    if (min_price) {
+        query += ' AND p.price >= ?';
+        params.push(parseFloat(min_price));
+    }
+
+    if (max_price) {
+        query += ' AND p.price <= ?';
+        params.push(parseFloat(max_price));
+    }
+
+    query += ' ORDER BY p.created_at DESC';
+
+    db.all(query, params, (err, rows) => {
+        if (err) return res.status(500).json({
+            success: false,
+            error: err.message
+        });
+        res.json({
+            success: true,
+            products: rows
+        });
+    });
+});
+
+app.get('/api/admin/products/:id', authenticateAdmin, (req, res) => {
+    const {
+        id
+    } = req.params;
+    db.get(`SELECT * FROM Products WHERE product_id = ?`, [id], (err, row) => {
+        if (err) return res.status(500).json({
+            error: err.message
+        });
+        if (!row) return res.status(404).json({
+            error: 'Product not found'
+        });
+        res.json({
+            success: true,
+            product: row
+        });
+    });
+});
+
+app.post('/api/admin/products', authenticateAdmin, (req, res) => {
+    const {
+        name,
+        category_id,
+        description,
+        price,
+        image_url,
+        status
+    } = req.body;
+
+    db.run(
+        `INSERT INTO Products (name, category_id, description, price, image_url, status) 
+         VALUES (?, ?, ?, ?, ?, ?)`,
+        [name, category_id, description, price, image_url, status || 'available'],
+        function (err) {
+            if (err) return res.status(500).json({
+                error: err.message
+            });
+            res.json({
+                success: true,
+                product_id: this.lastID
+            });
+        }
+    );
+});
+
+app.put('/api/admin/products/:id', authenticateAdmin, (req, res) => {
+    const {
+        id
+    } = req.params;
+    let {
+        name,
+        category_id,
+        description,
+        price,
+        image_url,
+        status
+    } = req.body;
+
+    console.log("Updating Product:", {
+        id,
+        name,
+        category_id,
+        description,
+        price,
+        image_url,
+        status
+    });
+
+    category_id = category_id && category_id !== "" ? parseInt(category_id) : null;
+    price = price && !isNaN(price) ? parseFloat(price) : 0;
+
+    db.run(
+        `UPDATE Products 
+   SET name = ?, 
+       category_id = ?, 
+       description = ?, 
+       price = ?, 
+       image_url = ?, 
+       status = ?
+   WHERE product_id = ?`,
+        [name, category_id, description, price, image_url, status, id],
+        function (err) {
+            if (err) {
+                console.error("SQL Update Error:", err.message);
+                return res.status(500).json({
+                    success: false,
+                    error: err.message
+                });
+            }
+            if (this.changes === 0) {
+                return res.status(404).json({
+                    success: false,
+                    message: "Product not found"
+                });
+            }
+            res.json({
+                success: true,
+                message: "Product updated successfully"
+            });
+        }
+    );
+});
+
+app.delete('/api/admin/products/:id', authenticateAdmin, (req, res) => {
+    const {
+        id
+    } = req.params;
+    db.run(`DELETE FROM Products WHERE product_id = ?`, [id], function (err) {
+        if (err) return res.status(500).json({
+            error: err.message
+        });
+        res.json({
+            success: true,
+            changes: this.changes
+        });
+    });
+});
+
+app.get('/api/admin/categories', authenticateAdminApi, (req, res) => {
+    const query = `
+        SELECT c.*, COUNT(p.product_id) as product_count 
+        FROM Categories c 
+        LEFT JOIN Products p ON c.category_id = p.category_id 
+        GROUP BY c.category_id 
+        ORDER BY c.name
+    `;
+
+    db.all(query, [], (err, rows) => {
+        if (err) return res.status(500).json({
+            error: err.message
+        });
+        res.json({
+            success: true,
+            categories: rows
+        });
+    });
+});
+
+app.get('/api/admin/categories/:id', authenticateAdmin, (req, res) => {
+    const {
+        id
+    } = req.params;
+    db.get(`SELECT * FROM Categories WHERE category_id = ?`, [id], (err, row) => {
+        if (err) return res.status(500).json({
+            error: err.message
+        });
+        if (!row) return res.status(404).json({
+            error: 'Category not found'
+        });
+        res.json({
+            success: true,
+            category: row
+        });
+    });
+});
+
+app.post('/api/admin/categories', authenticateAdmin, (req, res) => {
+    const {
+        name
+    } = req.body;
+
+    db.run(`INSERT INTO Categories (name) VALUES (?)`, [name], function (err) {
+        if (err) return res.status(500).json({
+            error: err.message
+        });
+        res.json({
+            success: true,
+            category_id: this.lastID
+        });
+    });
+});
+
+app.put('/api/admin/categories/:id', authenticateAdmin, (req, res) => {
+    const {
+        id
+    } = req.params;
+    const {
+        name
+    } = req.body;
+
+    db.run(`UPDATE Categories SET name = ? WHERE category_id = ?`, [name, id], function (err) {
+        if (err) return res.status(500).json({
+            error: err.message
+        });
+        res.json({
+            success: true,
+            changes: this.changes
+        });
+    });
+});
+
+app.delete('/api/admin/categories/:id', authenticateAdmin, (req, res) => {
+    const {
+        id
+    } = req.params;
+    db.run(`DELETE FROM Categories WHERE category_id = ?`, [id], function (err) {
+        if (err) return res.status(500).json({
+            error: err.message
+        });
+        res.json({
+            success: true,
+            changes: this.changes
+        });
+    });
+});
+
+app.get('/api/admin/orders', authenticateAdmin, (req, res) => {
+    const query = `
+        SELECT o.*, u.name as customer_name, u.email as customer_email 
+        FROM Orders o 
+        JOIN Users u ON o.customer_id = u.customer_id 
+        ORDER BY o.created_at DESC 
+        LIMIT 100
+    `;
+
+    db.all(query, [], (err, rows) => {
+        if (err) return res.status(500).json({
+            error: err.message
+        });
+        res.json({
+            success: true,
+            orders: rows
+        });
+    });
+});
+
+app.put('/api/admin/orders/:id/status', authenticateAdmin, (req, res) => {
+    const {
+        id
+    } = req.params;
+    const {
+        status
+    } = req.body;
+
+    const validStatuses = ['pending', 'accepted', 'cooking', 'delivering', 'completed', 'cancelled'];
+    if (!validStatuses.includes(status)) {
+        return res.status(400).json({
+            error: 'Invalid status'
+        });
+    }
+
+    db.run(
+        `UPDATE Orders SET order_status = ?, updated_at = CURRENT_TIMESTAMP WHERE order_id = ?`,
+        [status, id],
+        function (err) {
+            if (err) return res.status(500).json({
+                error: err.message
+            });
+            res.json({
+                success: true,
+                changes: this.changes
+            });
+        }
+    );
+});
+
+// Enhanced member search
+app.get('/api/admin/members/search', authenticateAdmin, (req, res) => {
+    const { q } = req.query;
+
+    let query = `
+        SELECT 
+            u.customer_id, 
+            u.name, 
+            u.email, 
+            u.phone, 
+            u.created_at,
+            COUNT(o.order_id) AS order_count, 
+            COALESCE(SUM(o.final_amount), 0) AS total_spent
+        FROM Users u
+        LEFT JOIN Orders o ON u.customer_id = o.customer_id
+        WHERE u.role = 'customer'
+    `;
+    let params = [];
+
+    if (q) {
+        query += ` AND (
+            u.name LIKE ? OR 
+            u.email LIKE ? OR 
+            u.phone LIKE ?
+        )`;
+        params.push(`%${q}%`, `%${q}%`, `%${q}%`);
+    }
+
+    query += ` GROUP BY u.customer_id 
+               ORDER BY u.created_at DESC`;
+
+    db.all(query, params, (err, rows) => {
+        if (err) {
+            console.error("SQL Error (members search):", err.message);
+            return res.status(500).json({ success: false, error: err.message });
+        }
+        res.json({ success: true, members: rows });
+    });
+});
+
+app.get('/api/admin/members', authenticateAdmin, (req, res) => {
+    const query = `
+        SELECT 
+            u.customer_id, 
+            u.name, 
+            u.email, 
+            u.phone, 
+            u.created_at,
+            COUNT(o.order_id) AS order_count,
+            COALESCE(SUM(o.final_amount), 0) AS total_spent
+        FROM Users u
+        LEFT JOIN Orders o ON u.customer_id = o.customer_id
+        WHERE u.role = 'customer'
+        GROUP BY u.customer_id
+        ORDER BY u.created_at DESC
+    `;
+
+    db.all(query, [], (err, rows) => {
+        if (err) {
+            console.error("SQL Error (members list):", err.message);
+            return res.status(500).json({ success: false, error: err.message });
+        }
+        res.json({ success: true, members: rows });
+    });
+});
+
+app.get('/api/admin/employees', authenticateAdmin, (req, res) => {
+    db.all(`SELECT * FROM Employees ORDER BY created_at DESC`, [], (err, rows) => {
+        if (err) return res.status(500).json({
+            error: err.message
+        });
+        res.json({
+            success: true,
+            employees: rows
+        });
+    });
+});
+
+app.get('/api/admin/employees/:id', authenticateAdmin, (req, res) => {
+    const {
+        id
+    } = req.params;
+    db.get(`SELECT * FROM Employees WHERE employee_id = ?`, [id], (err, row) => {
+        if (err) return res.status(500).json({
+            error: err.message
+        });
+        if (!row) return res.status(404).json({
+            error: 'Employee not found'
+        });
+        res.json({
+            success: true,
+            employee: row
+        });
+    });
+});
+
+app.post('/api/admin/employees', authenticateAdmin, (req, res) => {
+    const {
+        name,
+        email,
+        phone,
+        position,
+        salary,
+        hire_date
+    } = req.body;
+
+    db.run(
+        `INSERT INTO Employees (name, email, phone, position, salary, hire_date) 
+         VALUES (?, ?, ?, ?, ?, ?)`,
+        [name, email, phone, position, salary, hire_date],
+        function (err) {
+            if (err) return res.status(500).json({
+                error: err.message
+            });
+            res.json({
+                success: true,
+                employee_id: this.lastID
+            });
+        }
+    );
+});
+
+app.put('/api/admin/employees/:id', authenticateAdmin, (req, res) => {
+    const {
+        id
+    } = req.params;
+    const {
+        name,
+        email,
+        phone,
+        position,
+        salary,
+        hire_date
+    } = req.body;
+
+    db.run(
+        `UPDATE Employees SET name = ?, email = ?, phone = ?, position = ?, 
+         salary = ?, hire_date = ?, updated_at = CURRENT_TIMESTAMP WHERE employee_id = ?`,
+        [name, email, phone, position, salary, hire_date, id],
+        function (err) {
+            if (err) return res.status(500).json({
+                error: err.message
+            });
+            res.json({
+                success: true,
+                changes: this.changes
+            });
+        }
+    );
+});
+
+app.delete('/api/admin/employees/:id', authenticateAdmin, (req, res) => {
+    const {
+        id
+    } = req.params;
+    db.run(`DELETE FROM Employees WHERE employee_id = ?`, [id], function (err) {
+        if (err) return res.status(500).json({
+            error: err.message
+        });
+        res.json({
+            success: true,
+            changes: this.changes
+        });
+    });
+});
+
+// ============= ADMIN PROMOTIONS ENDPOINTS =============
+app.get('/api/admin/promotions', authenticateAdmin, (req, res) => {
+    const query = `
+        SELECT p.*, 
+               GROUP_CONCAT(DISTINCT c.name) as categories,
+               GROUP_CONCAT(DISTINCT pr.name) as products
+        FROM Promotions p
+        LEFT JOIN Promotion_Categories pc ON p.promotion_id = pc.promotion_id
+        LEFT JOIN Categories c ON pc.category_id = c.category_id
+        LEFT JOIN Promotion_Products pp ON p.promotion_id = pp.promotion_id
+        LEFT JOIN Products pr ON pp.product_id = pr.product_id
+        GROUP BY p.promotion_id
+        ORDER BY p.created_at DESC
+    `;
+
+    db.all(query, [], (err, rows) => {
+        if (err) return res.status(500).json({
+            error: err.message
+        });
+        res.json({
+            success: true,
+            promotions: rows
+        });
+    });
+});
+
+app.get('/api/admin/promotions/:id', authenticateAdmin, (req, res) => {
+    const {
+        id
+    } = req.params;
+    db.get(`SELECT * FROM Promotions WHERE promotion_id = ?`, [id], (err, row) => {
+        if (err) return res.status(500).json({
+            error: err.message
+        });
+        if (!row) return res.status(404).json({
+            error: 'Promotion not found'
+        });
+        res.json({
+            success: true,
+            promotion: row
+        });
+    });
+});
+
+app.post('/api/admin/promotions', authenticateAdmin, (req, res) => {
+    const {
+        name,
+        description,
+        type,
+        discount_value,
+        buy_quantity,
+        get_quantity,
+        min_order_amount,
+        max_discount_amount,
+        usage_limit,
+        usage_per_customer,
+        start_date,
+        end_date,
+        status,
+        promo_code
+    } = req.body;
+
+    db.run(
+        `INSERT INTO Promotions (name, description, type, discount_value, buy_quantity, 
+         get_quantity, min_order_amount, max_discount_amount, usage_limit, 
+         usage_per_customer, start_date, end_date, status, promo_code) 
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        [name, description, type, discount_value, buy_quantity, get_quantity,
+            min_order_amount, max_discount_amount, usage_limit, usage_per_customer,
+            start_date, end_date, status, promo_code
+        ],
+        function (err) {
+            if (err) return res.status(500).json({
+                error: err.message
+            });
+            res.json({
+                success: true,
+                promotion_id: this.lastID
+            });
+        }
+    );
+});
+
+app.put('/api/admin/promotions/:id', authenticateAdmin, (req, res) => {
+    const {
+        id
+    } = req.params;
+    const {
+        name,
+        description,
+        type,
+        discount_value,
+        buy_quantity,
+        get_quantity,
+        min_order_amount,
+        max_discount_amount,
+        usage_limit,
+        usage_per_customer,
+        start_date,
+        end_date,
+        status,
+        promo_code
+    } = req.body;
+
+    db.run(
+        `UPDATE Promotions SET name = ?, description = ?, type = ?, discount_value = ?, 
+         buy_quantity = ?, get_quantity = ?, min_order_amount = ?, max_discount_amount = ?, 
+         usage_limit = ?, usage_per_customer = ?, start_date = ?, end_date = ?, 
+         status = ?, promo_code = ?, updated_at = CURRENT_TIMESTAMP WHERE promotion_id = ?`,
+        [name, description, type, discount_value, buy_quantity, get_quantity,
+            min_order_amount, max_discount_amount, usage_limit, usage_per_customer,
+            start_date, end_date, status, promo_code, id
+        ],
+        function (err) {
+            if (err) return res.status(500).json({
+                error: err.message
+            });
+            res.json({
+                success: true,
+                changes: this.changes
+            });
+        }
+    );
+});
+
+app.delete('/api/admin/promotions/:id', authenticateAdmin, (req, res) => {
+    const {
+        id
+    } = req.params;
+    db.run(`DELETE FROM Promotions WHERE promotion_id = ?`, [id], function (err) {
+        if (err) return res.status(500).json({
+            error: err.message
+        });
+        res.json({
+            success: true,
+            changes: this.changes
+        });
+    });
+});
+
+// ============= CUSTOMER COUPONS MANAGEMENT =============
+app.get('/api/admin/customer-coupons', authenticateAdmin, (req, res) => {
+    const query = `
+        SELECT cc.*, u.name as customer_name, u.email, p.name as promo_name, p.promo_code
+        FROM Customer_Coupons cc
+        JOIN Users u ON cc.customer_id = u.customer_id
+        JOIN Promotions p ON cc.promotion_id = p.promotion_id
+        ORDER BY cc.created_at DESC
+    `;
+
+    db.all(query, [], (err, rows) => {
+        if (err) return res.status(500).json({
+            error: err.message
+        });
+        res.json({
+            success: true,
+            coupons: rows
+        });
+    });
+});
+
+app.post('/api/admin/assign-coupon', authenticateAdmin, (req, res) => {
+    const {
+        customer_id,
+        promotion_id,
+        expires_at
+    } = req.body;
+
+    db.run(
+        `INSERT INTO Customer_Coupons (customer_id, promotion_id, expires_at) 
+         VALUES (?, ?, ?)`,
+        [customer_id, promotion_id, expires_at],
+        function (err) {
+            if (err) return res.status(500).json({
+                error: err.message
+            });
+            res.json({
+                success: true,
+                coupon_id: this.lastID
+            });
+        }
+    );
+});
+
+// System health and metrics
+app.get('/api/admin/system/metrics', authenticateAdmin, (req, res) => {
+    const metrics = {
+        server: {
+            uptime: process.uptime(),
+            memory: process.memoryUsage(),
+            cpu: process.cpuUsage(),
+            version: process.version,
+            platform: process.platform
+        },
+        database: {
+            connected: true,
+            last_backup: null // You can implement backup tracking
+        },
+        performance: {
+            response_time: Date.now(), // You can implement actual response time tracking
+            error_rate: 0 // You can implement error rate tracking
+        }
+    };
+
+    // Test database connection
+    db.get('SELECT COUNT(*) as count FROM sqlite_master WHERE type="table"', [], (err, result) => {
+        if (err) {
+            metrics.database.connected = false;
+            metrics.database.error = err.message;
+        } else {
+            metrics.database.tables_count = result.count;
+        }
+
+        res.json({
+            success: true,
+            metrics
+        });
+    });
+});
+
+// Export data endpoints
+app.get('/api/admin/export/orders', authenticateAdmin, (req, res) => {
+    const {
+        start_date,
+        end_date,
+        status
+    } = req.query;
+
+    let query = `
+        SELECT o.*, u.name as customer_name, u.email as customer_email
+        FROM Orders o 
+        JOIN Users u ON o.customer_id = u.customer_id 
+        WHERE 1=1
+    `;
+    let params = [];
+
+    if (start_date) {
+        query += ' AND DATE(o.created_at) >= ?';
+        params.push(start_date);
+    }
+
+    if (end_date) {
+        query += ' AND DATE(o.created_at) <= ?';
+        params.push(end_date);
+    }
+
+    if (status) {
+        query += ' AND o.order_status = ?';
+        params.push(status);
+    }
+
+    query += ' ORDER BY o.created_at DESC';
+
+    db.all(query, params, (err, rows) => {
+        if (err) return res.status(500).json({
+            error: err.message
+        });
+
+        // Convert to CSV format
+        const csvHeader = 'Order ID,Customer Name,Customer Email,Total Amount,Final Amount,Status,Order Date\n';
+        const csvRows = rows.map(row =>
+            `${row.order_id},"${row.customer_name}","${row.customer_email}",${row.total_amount},${row.final_amount},"${row.order_status}","${row.created_at}"`
+        ).join('\n');
+
+        res.setHeader('Content-Type', 'text/csv');
+        res.setHeader('Content-Disposition', 'attachment; filename="orders_export.csv"');
+        res.send(csvHeader + csvRows);
+    });
+});
+
+// Activity log for admin actions
+app.post('/api/admin/log', authenticateAdmin, (req, res) => {
+    const {
+        action,
+        entity_type,
+        entity_id,
+        details
+    } = req.body;
+
+    db.run(`
+        INSERT INTO System_Logs (user_id, action, entity_type, entity_id, details, ip_address)
+        VALUES (?, ?, ?, ?, ?, ?)
+    `, [
+        req.user.customer_id,
+        action,
+        entity_type,
+        entity_id,
+        details,
+        req.ip || req.connection.remoteAddress
+    ], function (err) {
+        if (err) console.error('Error logging admin action:', err);
+        res.json({
+            success: !err,
+            log_id: this.lastID
+        });
+    });
+});
+
+// Get activity logs
+app.get('/api/admin/logs', authenticateAdmin, (req, res) => {
+    const {
+        limit = 50, offset = 0
+    } = req.query;
+
+    const query = `
+        SELECT sl.*, u.name as user_name
+        FROM System_Logs sl
+        LEFT JOIN Users u ON sl.user_id = u.customer_id
+        ORDER BY sl.created_at DESC
+        LIMIT ? OFFSET ?
+    `;
+
+    db.all(query, [parseInt(limit), parseInt(offset)], (err, rows) => {
+        if (err) return res.status(500).json({
+            error: err.message
+        });
+        res.json({
+            success: true,
+            logs: rows
+        });
+    });
+});
+
+// Initialize System_Logs table if it doesn't exist
+function createSystemLogsTable() {
+    db.run(`
+        CREATE TABLE IF NOT EXISTS System_Logs (
+            log_id INTEGER PRIMARY KEY AUTOINCREMENT,
+            user_id INTEGER,
+            action TEXT NOT NULL,
+            entity_type TEXT NOT NULL,
+            entity_id INTEGER,
+            details TEXT,
+            ip_address TEXT,
+            created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+            FOREIGN KEY (user_id) REFERENCES Users(customer_id)
+        )
+    `);
+}
+
+// Call this in your initializeDatabase function
+// Add this line to your initializeDatabase() function:
+// createSystemLogsTable();
+
+// Update your existing login route to handle admin redirect
+app.post('/api/auth/login', (req, res) => {
+    const {
+        email,
+        password
+    } = req.body;
+
+    db.get('SELECT * FROM Users WHERE email = ?', [email], (err, user) => {
+        if (err) return res.status(500).json({
+            success: false,
+            error: "DB Error"
+        });
+        if (!user || !bcrypt.compareSync(password, user.password)) {
+            return res.status(401).json({
+                success: false,
+                error: "อีเมลหรือรหัสผ่านไม่ถูกต้อง"
+            });
+        }
+
+        const token = jwt.sign({
+            customer_id: user.customer_id,
+            name: user.name,
+            email: user.email,
+            role: user.role
+        }, JWT_SECRET, {
+            expiresIn: '24h'
+        });
+
+        res.cookie("token", token, {
+            httpOnly: true,
+            secure: false,
+            maxAge: 24 * 60 * 60 * 1000
+        });
+
+        // Redirect admin users to admin panel
+        const redirectTo = user.role === 'admin' ? '/admin' : '/';
+        res.json({
+            success: true,
+            redirectTo: redirectTo
+        });
+    });
+});
+
+// Error handling middleware for admin routes
+// app.use('/api/admin/*', (err, req, res, next) => {
+//     console.error('Admin API Error:', err);
+//     res.status(500).json({
+//         success: false,
+//         error: 'Internal server error',
+//         details: process.env.NODE_ENV === 'development' ? err.message : undefined
+//     });
+// });
+
 app.get('/api/search', (req, res) => {
     const {
         q
@@ -1378,6 +2814,48 @@ app.use((req, res) => {
         });
     }
 });
+
+function createSystemLogsTable() {
+    db.run(`
+        CREATE TABLE IF NOT EXISTS System_Logs (
+            log_id INTEGER PRIMARY KEY AUTOINCREMENT,
+            user_id INTEGER,
+            action TEXT NOT NULL,
+            entity_type TEXT NOT NULL,
+            entity_id INTEGER,
+            details TEXT,
+            ip_address TEXT,
+            created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+            FOREIGN KEY (user_id) REFERENCES Users(customer_id)
+        )
+    `);
+}
+
+// const logAdminAction = (action, entityType, entityId = null, details = null) => {
+//     return (req, res, next) => {
+//         const originalSend = res.send;
+//         res.send = function(data) {
+//             if (res.statusCode >= 200 && res.statusCode < 300) {
+//                 const logData = {
+//                     user_id: req.user.customer_id,
+//                     action: action,
+//                     entity_type: entityType,
+//                     entity_id: entityId,
+//                     details: details || JSON.stringify(req.body),
+//                     ip_address: req.ip || req.connection.remoteAddress
+//                 };
+
+//                 db.run(`
+//                     INSERT INTO System_Logs (user_id, action, entity_type, entity_id, details, ip_address)
+//                     VALUES (?, ?, ?, ?, ?, ?)
+//                 `, [logData.user_id, logData.action, logData.entity_type, 
+//                     logData.entity_id, logData.details, logData.ip_address]);
+//             }
+//             originalSend.call(this, data);
+//         };
+//         next();
+//     };
+// };
 
 app.listen(PORT, () => {
     console.log(`🚀 Restaurant Server running on port ${PORT}`);

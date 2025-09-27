@@ -12,7 +12,6 @@
 </head>
 
 <body>
-
   <div class="form-box">
     <h2>เข้าสู่ระบบ</h2>
     <form id="loginForm" class="form">
@@ -23,70 +22,13 @@
           <img src="/images/icon/eye.png" alt="toggle">
         </span>
       </div>
-
       <button type="submit" class="btn-submit">เข้าสู่ระบบ</button>
     </form>
     <p>ยังไม่มีบัญชี? <a href="/register">สมัครสมาชิก</a></p>
   </div>
 
   <script>
-    const form = document.getElementById("loginForm");
-    form.addEventListener("submit", async function (e) {
-      e.preventDefault();
-
-      const submitBtn = form.querySelector('.btn-submit');
-      submitBtn.classList.add('loading');
-      submitBtn.disabled = true;
-
-      const formData = new FormData(form);
-      const data = Object.fromEntries(formData.entries());
-
-      try {
-        const res = await fetch("/api/auth/login", {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json"
-          },
-          body: JSON.stringify(data)
-        });
-
-        const result = await res.json();
-
-        if (result.success) {
-          Swal.fire({
-            icon: "success",
-            title: "เข้าสู่ระบบสำเร็จ",
-            timer: 1500,
-            showConfirmButton: false
-          }).then(() => {
-            window.location.href = "/";
-          });
-        } else {
-          Swal.fire({
-            icon: "error",
-            title: "เข้าสู่ระบบล้มเหลว",
-            text: result.error || "อีเมลหรือรหัสผ่านไม่ถูกต้อง"
-          });
-        }
-      } catch (err) {
-        Swal.fire({
-          icon: "error",
-          title: "เกิดข้อผิดพลาด",
-          text: "ไม่สามารถเชื่อมต่อกับเซิร์ฟเวอร์ได้"
-        });
-      } finally {
-        submitBtn.classList.remove('loading');
-        submitBtn.disabled = false;
-      }
-    });
-
-    const inputs = document.querySelectorAll('input');
-    inputs.forEach(input => {
-      input.addEventListener('blur', function () {
-        this.style.borderColor = this.validity.valid ? '#10b981' : '#ef4444';
-      });
-    });
-
+    // Toggle password visibility
     document.querySelectorAll(".toggle-password").forEach(btn => {
       btn.addEventListener("click", function () {
         const targetId = this.getAttribute("data-target");
@@ -102,6 +44,107 @@
         }
       });
     });
+
+    // Form validation styling
+    const inputs = document.querySelectorAll('input');
+    inputs.forEach(input => {
+      input.addEventListener('blur', function () {
+        this.style.borderColor = this.validity.valid ? '#10b981' : '#ef4444';
+      });
+    });
+
+    // Main login form handler
+    document.getElementById('loginForm').addEventListener('submit', async (e) => {
+      e.preventDefault();
+
+      const formData = new FormData(e.target);
+      const email = formData.get('email');
+      const password = formData.get('password');
+
+      const submitButton = e.target.querySelector('button[type="submit"]');
+      const originalText = submitButton.textContent;
+
+      // Show loading state
+      submitButton.disabled = true;
+      submitButton.textContent = 'กำลังเข้าสู่ระบบ...';
+      submitButton.classList.add('loading');
+
+      try {
+        const response = await fetch('/api/auth/login', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            email,
+            password
+          })
+        });
+
+        const data = await response.json();
+
+        if (data.success) {
+          // Show success message
+          Swal.fire({
+            icon: "success",
+            title: "เข้าสู่ระบบสำเร็จ",
+            text: data.redirectTo === '/admin' ? "ยินดีต้อนรับสู่ระบบ Admin" : "ยินดีต้อนรับ",
+            timer: 1500,
+            showConfirmButton: false
+          }).then(() => {
+            // Redirect to appropriate page
+            window.location.href = data.redirectTo || '/';
+          });
+        } else {
+          // Show error message
+          Swal.fire({
+            icon: "error",
+            title: "เข้าสู่ระบบไม่สำเร็จ",
+            text: data.error || "อีเมลหรือรหัสผ่านไม่ถูกต้อง"
+          });
+        }
+      } catch (error) {
+        console.error('Login error:', error);
+        Swal.fire({
+          icon: "error",
+          title: "เกิดข้อผิดพลาด",
+          text: "ไม่สามารถเชื่อมต่อกับเซิร์ฟเวอร์ได้"
+        });
+      } finally {
+        // Reset button state
+        submitButton.disabled = false;
+        submitButton.textContent = originalText;
+        submitButton.classList.remove('loading');
+      }
+    });
+
+    // Show notification helper (fallback)
+    function showNotification(message, type = 'info') {
+      let notification = document.getElementById('notification');
+      if (!notification) {
+        notification = document.createElement('div');
+        notification.id = 'notification';
+        notification.className = 'notification';
+        notification.style.cssText = `
+                    position: fixed; top: 20px; right: 20px; 
+                    padding: 15px 25px; border-radius: 8px; 
+                    color: white; font-weight: 600; z-index: 10000;
+                    transform: translateX(400px); transition: transform 0.3s;
+                `;
+        document.body.appendChild(notification);
+      }
+
+      notification.textContent = message;
+      notification.style.backgroundColor = type === 'error' ? '#e74c3c' :
+        type === 'success' ? '#10b981' : '#3498db';
+      notification.classList.add('show');
+      notification.style.transform = 'translateX(0)';
+
+      setTimeout(() => {
+        notification.style.transform = 'translateX(400px)';
+        setTimeout(() => notification.classList.remove('show'), 300);
+      }, 3000);
+    }
   </script>
 </body>
 

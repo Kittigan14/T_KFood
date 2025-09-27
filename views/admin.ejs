@@ -1,0 +1,1054 @@
+<!DOCTYPE html>
+<html lang="th">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="stylesheet" href="/css/admin.css">
+    <title>Admin Dashboard - T&KFood</title>
+</head>
+
+<body>
+    <div class="admin-container">
+        <!-- Sidebar -->
+        <nav class="admin-sidebar">
+            <div class="sidebar-header">
+                <h2>T&K Food Admin Panel</h2>
+                <p>สวัสดี, Admin</p>
+            </div>
+            <ul class="sidebar-menu">
+                <li><a href="#dashboard" class="menu-item active" data-section="dashboard">
+                        Dashboard
+                    </a></li>
+                <!-- <li><a href="#settings" class="menu-item" data-section="settings">
+                        Settings
+                    </a></li> -->
+                <li><a href="#products" class="menu-item" data-section="products">
+                        Product Management
+                    </a></li>
+                <li><a href="#categories" class="menu-item" data-section="categories">
+                        Category Management
+                    </a></li>
+                <li><a href="#members" class="menu-item" data-section="members">
+                        Member Information
+                    </a></li>
+                <li><a href="#orders" class="menu-item" data-section="orders">
+                        Orders Management
+                    </a></li>
+                <li><a href="#employees" class="menu-item" data-section="employees">
+                        Employee Management
+                    </a></li>
+                <li><a href="/logout" class="menu-item logout">
+                        Logout
+                    </a></li>
+            </ul>
+        </nav>
+
+        <!-- Main Content -->
+        <main class="admin-main">
+            <header class="admin-header">
+                <h1 id="page-title">Dashboard</h1>
+                <!-- <div class="header-actions">
+                    <button class="btn-refresh" onclick="refreshCurrentSection()">🔄 Refresh</button>
+                    <a href="/" class="btn-view-site" target="_blank">👁️ View Site</a>
+                </div> -->
+            </header>
+
+            <div class="admin-content">
+                <!-- Dashboard Section -->
+                <section id="dashboard-section" class="content-section active">
+                    <div class="stats-grid">
+                        <div class="stat-card">
+                            <h3>Total Orders</h3>
+                            <p class="stat-number" id="total-orders">0</p>
+                        </div>
+                        <div class="stat-card">
+                            <h3>Total Products</h3>
+                            <p class="stat-number" id="total-products">0</p>
+                        </div>
+                        <div class="stat-card">
+                            <h3>Total Members</h3>
+                            <p class="stat-number" id="total-members">0</p>
+                        </div>
+                        <div class="stat-card">
+                            <h3>Revenue Today</h3>
+                            <p class="stat-number" id="revenue-today">0 บาท</p>
+                        </div>
+                    </div>
+                    <div class="recent-orders">
+                        <h3>Recent Orders</h3>
+                        <div id="recent-orders-list">Loading...</div>
+                    </div>
+                </section>
+
+                <!-- Settings Section -->
+                <!-- <section id="settings-section" class="content-section">
+                    <div class="settings-form">
+                        <h3>General Settings</h3>
+                        <form id="settings-form">
+                            <div class="form-group">
+                                <label>Restaurant Name:</label>
+                                <input type="text" name="restaurant_name" value="T&KFood" required>
+                            </div>
+                            <div class="form-group">
+                                <label>Contact Phone:</label>
+                                <input type="text" name="contact_phone" value="099-123-4567">
+                            </div>
+                            <div class="form-group">
+                                <label>Contact Email:</label>
+                                <input type="email" name="contact_email" value="restaurant@example.com">
+                            </div>
+                            <div class="form-group">
+                                <label>Address:</label>
+                                <textarea name="address" rows="3">123 ถนนหลัก กรุงเทพฯ</textarea>
+                            </div>
+                            <div class="form-group">
+                                <label>Opening Hours:</label>
+                                <input type="text" name="opening_hours" value="9:00-19:00น. หยุดวันอาทิตย์">
+                            </div>
+                            <button type="submit" class="btn-submit">Save Settings</button>
+                        </form>
+                    </div>
+                </section> -->
+
+                <!-- Products Section -->
+                <section id="products-section" class="content-section">
+                    <div class="section-header">
+                        <h3>Product Management</h3>
+                        <button class="btn-add" onclick="openProductModal()">+ Add Product</button>
+                    </div>
+                    <div class="filter-bar">
+                        <select id="product-category-filter">
+                            <option value="">All Categories</option>
+                        </select>
+                        <input type="text" id="product-search" placeholder="Search products...">
+                        <button id="product-search-btn" class="btn-search" hidden>🔍 Search</button>
+                        <button id="product-reset-btn" class="btn-reset" hidden>⟲ Reset</button>
+                    </div>
+
+                    <div class="table-container">
+                        <table id="products-table">
+                            <thead>
+                                <tr>
+                                    <th>ID</th>
+                                    <th>Name</th>
+                                    <th>Category</th>
+                                    <th>Price</th>
+                                    <th>Status</th>
+                                    <th>Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr>
+                                    <td colspan="6">Loading...</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </section>
+
+                <!-- Categories Section -->
+                <section id="categories-section" class="content-section">
+                    <div class="section-header">
+                        <h3>Category Management</h3>
+                        <button class="btn-add" onclick="openCategoryModal()">+ Add Category</button>
+                    </div>
+                    <div class="table-container">
+                        <table id="categories-table">
+                            <thead>
+                                <tr>
+                                    <th>ID</th>
+                                    <th>Name</th>
+                                    <th>Product Count</th>
+                                    <th>Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr>
+                                    <td colspan="4">Loading...</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </section>
+
+                <!-- Members Section -->
+                <section id="members-section" class="content-section">
+                    <div class="section-header">
+                        <h3>Member Information</h3>
+                    </div>
+                    <div class="table-container">
+                        <table id="members-table">
+                            <thead>
+                                <tr>
+                                    <th>ID</th>
+                                    <th>Name</th>
+                                    <th>Email</th>
+                                    <th>Orders</th>
+                                    <th>Joined</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr>
+                                    <td colspan="5">Loading...</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </section>
+
+                <!-- Orders Section -->
+                <section id="orders-section" class="content-section">
+                    <div class="section-header">
+                        <h3>Orders Management</h3>
+                    </div>
+                    <div class="filter-bar">
+                        <select id="order-status-filter">
+                            <option value="">All Status</option>
+                            <option value="pending">Pending</option>
+                            <option value="accepted">Accepted</option>
+                            <option value="cooking">Cooking</option>
+                            <option value="delivering">Delivering</option>
+                            <option value="completed">Completed</option>
+                            <option value="cancelled">Cancelled</option>
+                        </select>
+                        <input type="date" id="order-date-filter">
+                    </div>
+                    <div class="table-container">
+                        <table id="orders-table">
+                            <thead>
+                                <tr>
+                                    <th>Order ID</th>
+                                    <th>Customer</th>
+                                    <th>Amount</th>
+                                    <th>Status</th>
+                                    <th>Date</th>
+                                    <th>Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr>
+                                    <td colspan="6">Loading...</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </section>
+
+                <!-- Employees Section -->
+                <section id="employees-section" class="content-section">
+                    <div class="section-header">
+                        <h3>Employee Management</h3>
+                        <button class="btn-add" onclick="openEmployeeModal()">+ Add Employee</button>
+                    </div>
+                    <div class="table-container">
+                        <table id="employees-table">
+                            <thead>
+                                <tr>
+                                    <th>ID</th>
+                                    <th>Name</th>
+                                    <th>Email</th>
+                                    <th>Position</th>
+                                    <th>Salary</th>
+                                    <th>Hire Date</th>
+                                    <th>Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr>
+                                    <td colspan="7">Loading...</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </section>
+            </div>
+        </main>
+    </div>
+
+    <!-- Product Modal -->
+    <div id="product-modal" class="modal">
+        <div class="modal-content">
+            <span class="modal-close" onclick="closeModal('product-modal')">&times;</span>
+            <h3 id="product-modal-title">Add Product</h3>
+            <form id="product-form">
+                <input type="hidden" id="product-id">
+                <div class="form-group">
+                    <label>Product Name:</label>
+                    <input type="text" id="product-name" required>
+                </div>
+                <div class="form-group">
+                    <label>Category:</label>
+                    <select id="product-category" required>
+                        <option value="">Select Category</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>Description:</label>
+                    <textarea id="product-description" rows="3"></textarea>
+                </div>
+                <div class="form-group">
+                    <label>Price (บาท):</label>
+                    <input type="number" id="product-price" step="0.01" required>
+                </div>
+                <div class="form-group">
+                    <label>Image URL:</label>
+                    <input type="text" id="product-image">
+                </div>
+                <div class="form-group">
+                    <label>Status:</label>
+                    <select id="product-status">
+                        <option value="available">Available</option>
+                        <option value="unavailable">Unavailable</option>
+                    </select>
+                </div>
+                <button type="submit" class="btn-submit">Save Product</button>
+            </form>
+        </div>
+    </div>
+
+    <!-- Category Modal -->
+    <div id="category-modal" class="modal">
+        <div class="modal-content">
+            <span class="modal-close" onclick="closeModal('category-modal')">&times;</span>
+            <h3 id="category-modal-title">Add Category</h3>
+            <form id="category-form">
+                <input type="hidden" id="category-id">
+                <div class="form-group">
+                    <label>Category Name:</label>
+                    <input type="text" id="category-name" required>
+                </div>
+                <button type="submit" class="btn-submit">Save Category</button>
+            </form>
+        </div>
+    </div>
+
+    <!-- Employee Modal -->
+    <div id="employee-modal" class="modal">
+        <div class="modal-content">
+            <span class="modal-close" onclick="closeModal('employee-modal')">&times;</span>
+            <h3 id="employee-modal-title">Add Employee</h3>
+            <form id="employee-form">
+                <input type="hidden" id="employee-id">
+                <div class="form-group">
+                    <label>Name:</label>
+                    <input type="text" id="employee-name" required>
+                </div>
+                <div class="form-group">
+                    <label>Email:</label>
+                    <input type="email" id="employee-email" required>
+                </div>
+                <div class="form-group">
+                    <label>Phone:</label>
+                    <input type="text" id="employee-phone">
+                </div>
+                <div class="form-group">
+                    <label>Position:</label>
+                    <input type="text" id="employee-position" required>
+                </div>
+                <div class="form-group">
+                    <label>Salary:</label>
+                    <input type="number" id="employee-salary" step="0.01">
+                </div>
+                <div class="form-group">
+                    <label>Hire Date:</label>
+                    <input type="date" id="employee-hire-date" required>
+                </div>
+                <button type="submit" class="btn-submit">Save Employee</button>
+            </form>
+        </div>
+    </div>
+
+    <!-- Order Details Modal -->
+    <div id="order-modal" class="modal">
+        <div class="modal-content order-modal-content">
+            <span class="modal-close" onclick="closeModal('order-modal')">&times;</span>
+            <h3>Order Details</h3>
+            <div id="order-details-content">Loading...</div>
+        </div>
+    </div>
+
+    <!-- Notification -->
+    <div id="notification" class="notification">
+        <span id="notification-message"></span>
+    </div>
+
+    <script>
+        // Global variables
+        let currentSection = 'dashboard';
+        let currentEditingId = null;
+
+        // Initialize the admin panel
+        document.addEventListener('DOMContentLoaded', function () {
+            setupNavigation();
+            loadDashboardStats();
+
+            document.getElementById('product-search-btn').addEventListener('click', searchProducts);
+            document.getElementById('product-search').addEventListener('keyup', function (e) {
+                if (e.key === 'Enter') searchProducts();
+            });
+            document.getElementById('product-category-filter').addEventListener('change', searchProducts);
+            document.getElementById('product-reset-btn').addEventListener('click', function () {
+                document.getElementById('product-search').value = '';
+                document.getElementById('product-category-filter').value = '';
+                loadProducts();
+            });
+        });
+
+
+        // Setup navigation
+        function setupNavigation() {
+            const menuItems = document.querySelectorAll('.menu-item[data-section]');
+            menuItems.forEach(item => {
+                item.addEventListener('click', function (e) {
+                    e.preventDefault();
+                    const section = this.dataset.section;
+                    showSection(section);
+
+                    // Update active menu item
+                    menuItems.forEach(mi => mi.classList.remove('active'));
+                    this.classList.add('active');
+                });
+            });
+        }
+
+        // Show specific section
+        function showSection(section) {
+            // Hide all sections
+            const sections = document.querySelectorAll('.content-section');
+            sections.forEach(s => s.classList.remove('active'));
+
+            // Show selected section
+            const targetSection = document.getElementById(section + '-section');
+            if (targetSection) {
+                targetSection.classList.add('active');
+                currentSection = section;
+
+                // Update page title
+                const titles = {
+                    'dashboard': 'Dashboard',
+                    'settings': 'Settings',
+                    'products': 'Product Management',
+                    'categories': 'Category Management',
+                    'members': 'Member Information',
+                    'orders': 'Orders Management',
+                    'employees': 'Employee Management'
+                };
+                document.getElementById('page-title').textContent = titles[section] || section;
+
+                // Load section data
+                loadSectionData(section);
+            }
+        }
+
+        // Load section data
+        function loadSectionData(section) {
+            switch (section) {
+                case 'dashboard':
+                    loadDashboardStats();
+                    break;
+                case 'products':
+                    loadProducts();
+                    loadCategoriesForSelect();
+                    break;
+                case 'categories':
+                    loadCategories();
+                    break;
+                case 'members':
+                    loadMembers();
+                    break;
+                case 'orders':
+                    loadOrders();
+                    break;
+                case 'employees':
+                    loadEmployees();
+                    break;
+            }
+        }
+
+        // Dashboard functions
+        function loadDashboardStats() {
+            // Load orders count
+            fetch('/api/admin/stats/orders')
+                .then(res => res.json())
+                .then(data => {
+                    document.getElementById('total-orders').textContent = data.total || 0;
+                })
+                .catch(err => console.error('Error loading orders stats:', err));
+
+            // Load products count
+            fetch('/api/admin/stats/products')
+                .then(res => res.json())
+                .then(data => {
+                    document.getElementById('total-products').textContent = data.total || 0;
+                })
+                .catch(err => console.error('Error loading products stats:', err));
+
+            // Load members count
+            fetch('/api/admin/stats/members')
+                .then(res => res.json())
+                .then(data => {
+                    document.getElementById('total-members').textContent = data.total || 0;
+                })
+                .catch(err => console.error('Error loading members stats:', err));
+
+            // Load recent orders
+            fetch('/api/admin/orders/recent')
+                .then(res => res.json())
+                .then(data => {
+                    if (data.success) {
+                        const container = document.getElementById('recent-orders-list');
+                        if (data.orders.length === 0) {
+                            container.innerHTML = '<p>No recent orders</p>';
+                        } else {
+                            container.innerHTML = data.orders.map(order => `
+                                <div class="order-item">
+                                    <div>
+                                        <strong>Order #${order.order_id}</strong> - ${order.customer_name}
+                                        <br><small>${new Date(order.created_at).toLocaleString()}</small>
+                                    </div>
+                                    <div>
+                                        <span class="status-badge status-${order.order_status}">${order.order_status}</span>
+                                        <strong>${order.final_amount} บาท</strong>
+                                    </div>
+                                </div>
+                            `).join('');
+                        }
+                    }
+                })
+                .catch(err => console.error('Error loading recent orders:', err));
+        }
+
+        // Products functions
+        function loadProducts() {
+            fetch('/api/admin/products', {
+                    credentials: "include"
+                })
+                .then(res => res.json())
+                .then(data => {
+                    if (data.success) {
+                        const tbody = document.querySelector('#products-table tbody');
+                        if (data.products.length === 0) {
+                            tbody.innerHTML = '<tr><td colspan="6">No products found</td></tr>';
+                        } else {
+                            tbody.innerHTML = data.products.map(product => `
+                                <tr>
+                                    <td>${product.product_id}</td>
+                                    <td>${product.name}</td>
+                                    <td>${product.category_name || 'No Category'}</td>
+                                                                        <td>${product.price} บาท</td>
+                                    <td><span class="status-badge status-${product.status}">${product.status}</span></td>
+                                    <td>
+                                        <button class="btn-edit" onclick="editProduct(${product.product_id})">Edit</button>
+                                        <button class="btn-delete" onclick="deleteProduct(${product.product_id})">Delete</button>
+                                    </td>
+                                </tr>
+                            `).join('');
+                        }
+                    }
+                })
+                .catch(err => console.error('Error loading products:', err));
+        }
+
+        // Load categories for select dropdown
+        function loadCategoriesForSelect() {
+            fetch('/api/admin/categories', {
+                    credentials: "include"
+                })
+                .then(res => res.json())
+                .then(data => {
+                    if (data.success) {
+                        const select = document.getElementById('product-category');
+                        const filterSelect = document.getElementById('product-category-filter');
+                        select.innerHTML = '<option value="">Select Category</option>';
+                        filterSelect.innerHTML = '<option value="">All Categories</option>';
+                        data.categories.forEach(cat => {
+                            select.innerHTML += `<option value="${cat.category_id}">${cat.name}</option>`;
+                            filterSelect.innerHTML +=
+                                `<option value="${cat.category_id}">${cat.name}</option>`;
+                        });
+                    }
+                })
+                .catch(err => console.error('Error loading categories:', err));
+        }
+
+        // Open product modal
+        function openProductModal(editing = false, product = null) {
+            const modal = document.getElementById('product-modal');
+            const title = document.getElementById('product-modal-title');
+            const form = document.getElementById('product-form');
+
+            if (editing && product) {
+                title.textContent = "Edit Product";
+                document.getElementById('product-id').value = product.product_id;
+                document.getElementById('product-name').value = product.name;
+                document.getElementById('product-category').value = product.category_id || "";
+                document.getElementById('product-description').value = product.description || "";
+                document.getElementById('product-price').value = product.price;
+                document.getElementById('product-image').value = product.image_url || "";
+                document.getElementById('product-status').value = product.status;
+            } else {
+                title.textContent = "Add Product";
+                form.reset();
+                document.getElementById('product-id').value = "";
+            }
+
+            modal.classList.add('show');
+        }
+
+        // Close modal
+        function closeModal(id) {
+            document.getElementById(id).classList.remove('show');
+        }
+
+        // Edit product
+        function editProduct(id) {
+            fetch(`/api/admin/products/${id}`, {
+                    credentials: "include"
+                })
+                .then(res => res.json())
+                .then(data => {
+                    if (data.success && data.product) {
+                        openProductModal(true, data.product);
+                    }
+                })
+                .catch(err => console.error('Error loading product:', err));
+        }
+
+        // Delete product
+        function deleteProduct(id) {
+            if (!confirm("Are you sure you want to delete this product?")) return;
+            fetch(`/api/admin/products/${id}`, {
+                    method: 'DELETE',
+                    credentials: "include"
+                })
+                .then(res => res.json())
+                .then(data => {
+                    if (data.success) {
+                        showNotification("Product deleted successfully");
+                        loadProducts();
+                    } else {
+                        showNotification("Failed to delete product", true);
+                    }
+                })
+                .catch(err => console.error('Error deleting product:', err));
+        }
+
+        // Handle product form submit
+        document.getElementById('product-form').addEventListener('submit', function (e) {
+            e.preventDefault();
+            const id = document.getElementById('product-id').value;
+            const payload = {
+                name: document.getElementById('product-name').value,
+                category_id: document.getElementById('product-category').value,
+                description: document.getElementById('product-description').value,
+                price: parseFloat(document.getElementById('product-price').value),
+                image_url: document.getElementById('product-image').value,
+                status: document.getElementById('product-status').value
+            };
+
+            const method = id ? 'PUT' : 'POST';
+            const url = id ? `/api/admin/products/${id}` : '/api/admin/products';
+
+            fetch(url, {
+                    method,
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify(payload),
+                    credentials: "include"
+                })
+                .then(res => res.json())
+                .then(data => {
+                    if (data.success) {
+                        showNotification("Product saved successfully");
+                        closeModal('product-modal');
+                        loadProducts();
+                    } else {
+                        showNotification("Failed to save product", true);
+                    }
+                })
+                .catch(err => console.error('Error saving product:', err));
+        });
+
+        // Notification helper
+        function showNotification(message, isError = false) {
+            const notif = document.getElementById('notification');
+            notif.textContent = message;
+            notif.classList.add('show');
+            notif.classList.toggle('error', isError);
+            setTimeout(() => notif.classList.remove('show'), 3000);
+        }
+
+        function loadCategories() {
+            fetch('/api/admin/categories', {
+                    credentials: "include"
+                })
+                .then(res => res.json())
+                .then(data => {
+                    if (data.success) {
+                        const tbody = document.querySelector('#categories-table tbody');
+                        if (data.categories.length === 0) {
+                            tbody.innerHTML = '<tr><td colspan="4">No categories found</td></tr>';
+                        } else {
+                            tbody.innerHTML = data.categories.map(cat => `
+                        <tr>
+                            <td>${cat.category_id}</td>
+                            <td>${cat.name}</td>
+                            <td>${cat.product_count || 0}</td>
+                            <td>
+                                <button class="btn-edit" onclick="editCategory(${cat.category_id})">Edit</button>
+                                <button class="btn-delete" onclick="deleteCategory(${cat.category_id})">Delete</button>
+                            </td>
+                        </tr>
+                    `).join('');
+                        }
+                    }
+                })
+                .catch(err => console.error('Error loading categories:', err));
+        }
+
+
+        function openCategoryModal(editing = false, category = null) {
+            const modal = document.getElementById('category-modal');
+            const form = document.getElementById('category-form');
+            const title = document.getElementById('category-modal-title');
+
+            if (editing && category) {
+                title.textContent = "Edit Category";
+                document.getElementById('category-id').value = category.category_id;
+                document.getElementById('category-name').value = category.name;
+            } else {
+                title.textContent = "Add Category";
+                form.reset();
+                document.getElementById('category-id').value = "";
+            }
+
+            modal.classList.add('show');
+        }
+
+        document.getElementById('category-form').addEventListener('submit', function (e) {
+            e.preventDefault();
+            const id = document.getElementById('category-id').value;
+            const payload = {
+                name: document.getElementById('category-name').value
+            };
+            const method = id ? 'PUT' : 'POST';
+            const url = id ? `/api/admin/categories/${id}` : '/api/admin/categories';
+
+            fetch(url, {
+                    method,
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify(payload)
+                })
+                .then(res => res.json())
+                .then(data => {
+                    if (data.success) {
+                        showNotification("Category saved");
+                        closeModal('category-modal');
+                        loadCategories();
+                        loadCategoriesForSelect();
+                    }
+                });
+        });
+
+
+        function editCategory(id) {
+            fetch(`/api/admin/categories/${id}`, {
+                    credentials: "include"
+                })
+                .then(res => res.json())
+                .then(data => {
+                    if (data.success && data.category) {
+                        openCategoryModal(true, data.category);
+                    }
+                });
+        }
+
+        function deleteCategory(id) {
+            if (!confirm("Delete this category?")) return;
+            fetch(`/api/admin/categories/${id}`, {
+                    method: 'DELETE',
+                    credentials: "include"
+                })
+                .then(res => res.json())
+                .then(data => {
+                    if (data.success) {
+                        showNotification("Category deleted");
+                        loadCategories();
+                    }
+                });
+        }
+
+        document.getElementById('category-form').addEventListener('submit', function (e) {
+            e.preventDefault();
+            const id = document.getElementById('category-id').value;
+            const payload = {
+                name: document.getElementById('category-name').value,
+                description: document.getElementById('category-description').value
+            };
+            const method = id ? 'PUT' : 'POST';
+            const url = id ? `/api/admin/categories/${id}` : '/api/admin/categories';
+
+            fetch(url, {
+                    method,
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify(payload),
+                    credentials: "include"
+                })
+                .then(res => res.json())
+                .then(data => {
+                    if (data.success) {
+                        showNotification("Category saved");
+                        closeModal('category-modal');
+                        loadCategories();
+                    }
+                });
+        });
+
+        function loadOrders() {
+            fetch('/api/admin/orders', {
+                    credentials: "include"
+                })
+                .then(res => res.json())
+                .then(data => {
+                    if (data.success) {
+                        const tbody = document.querySelector('#orders-table tbody');
+                        tbody.innerHTML = data.orders.map(order => `
+                    <tr>
+                        <td>${order.order_id}</td>
+                        <td>${order.customer_name}</td>
+                        <td>${order.total_amount} บาท</td>
+                        <td><span class="status-badge status-${order.status}">${order.status}</span></td>
+                        <td>
+                            <select onchange="updateOrderStatus(${order.order_id}, this.value)">
+                                <option value="pending" ${order.status === 'pending' ? 'selected' : ''}>Pending</option>
+                                <option value="processing" ${order.status === 'processing' ? 'selected' : ''}>Processing</option>
+                                <option value="completed" ${order.status === 'completed' ? 'selected' : ''}>Completed</option>
+                                <option value="cancelled" ${order.status === 'cancelled' ? 'selected' : ''}>Cancelled</option>
+                            </select>
+                        </td>
+                    </tr>
+                `).join('');
+                    }
+                });
+        }
+
+        function updateOrderStatus(id, status) {
+            fetch(`/api/admin/orders/${id}/status`, {
+                    method: 'PUT',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        status
+                    }),
+                    credentials: "include"
+                })
+                .then(res => res.json())
+                .then(data => {
+                    if (data.success) {
+                        showNotification("Order status updated");
+                        loadOrders();
+                    }
+                });
+        }
+
+        function loadMembers() {
+            fetch('/api/admin/members', {
+                    credentials: "include"
+                })
+                .then(res => res.json())
+                .then(data => {
+                    if (data.success) {
+                        const tbody = document.querySelector('#members-table tbody');
+                        if (data.members.length === 0) {
+                            tbody.innerHTML = '<tr><td colspan="5">No customers found</td></tr>';
+                        } else {
+                            tbody.innerHTML = data.members.map(member => `
+                    <tr>
+                        <td>${member.customer_id}</td>
+                        <td>${member.name}</td>
+                        <td>${member.email}</td>
+                        <td>${member.order_count || 0}</td>
+                        <td>${new Date(member.created_at).toLocaleDateString('th-TH')}</td>
+                    </tr>
+                `).join('');
+                        }
+                    }
+                })
+                .catch(err => console.error('Error loading members:', err));
+        }
+
+        function loadEmployees() {
+            fetch('/api/admin/employees', {
+                    credentials: "include"
+                })
+                .then(res => res.json())
+                .then(data => {
+                    if (data.success) {
+                        const tbody = document.querySelector('#employees-table tbody');
+                        if (data.employees.length === 0) {
+                            tbody.innerHTML = '<tr><td colspan="7">No employees found</td></tr>';
+                        } else {
+                            tbody.innerHTML = data.employees.map(emp => `
+                        <tr>
+                            <td>${emp.employee_id}</td>
+                            <td>${emp.name}</td>
+                            <td>${emp.email}</td>
+                            <td>${emp.position}</td>
+                            <td>${emp.salary ? emp.salary + ' บาท' : '-'}</td>
+                            <td>${new Date(emp.hire_date).toLocaleDateString('th-TH')}</td>
+                            <td>
+                                <button class="btn-edit" onclick="editEmployee(${emp.employee_id})">Edit</button>
+                                <button class="btn-delete" onclick="deleteEmployee(${emp.employee_id})">Delete</button>
+                            </td>
+                        </tr>
+                    `).join('');
+                        }
+                    }
+                });
+        }
+
+        function openEmployeeModal(editing = false, employee = null) {
+            const modal = document.getElementById('employee-modal');
+            const form = document.getElementById('employee-form');
+            const title = document.getElementById('employee-modal-title');
+
+            if (editing && employee) {
+                title.textContent = "Edit Employee";
+                document.getElementById('employee-id').value = employee.employee_id;
+                document.getElementById('employee-name').value = employee.name;
+                document.getElementById('employee-email').value = employee.email;
+                document.getElementById('employee-phone').value = employee.phone || '';
+                document.getElementById('employee-position').value = employee.position;
+                document.getElementById('employee-salary').value = employee.salary || '';
+                document.getElementById('employee-hire-date').value = employee.hire_date ? employee.hire_date.split(
+                    'T')[0] : '';
+            } else {
+                title.textContent = "Add Employee";
+                form.reset();
+                document.getElementById('employee-id').value = "";
+            }
+
+            modal.classList.add('show');
+        }
+
+        function editEmployee(id) {
+            fetch(`/api/admin/employees/${id}`, {
+                    credentials: "include"
+                })
+                .then(res => res.json())
+                .then(data => {
+                    if (data.success && data.employee) {
+                        openEmployeeModal(true, data.employee);
+                    }
+                });
+        }
+
+        function deleteEmployee(id) {
+            if (!confirm("Delete this employee?")) return;
+            fetch(`/api/admin/employees/${id}`, {
+                    method: 'DELETE',
+                    credentials: "include"
+                })
+                .then(res => res.json())
+                .then(data => {
+                    if (data.success) {
+                        showNotification("Employee deleted");
+                        loadEmployees();
+                    }
+                });
+        }
+
+        document.getElementById('employee-form').addEventListener('submit', function (e) {
+            e.preventDefault();
+            const id = document.getElementById('employee-id').value;
+            const payload = {
+                name: document.getElementById('employee-name').value,
+                email: document.getElementById('employee-email').value,
+                phone: document.getElementById('employee-phone').value,
+                position: document.getElementById('employee-position').value,
+                salary: parseFloat(document.getElementById('employee-salary').value),
+                hire_date: document.getElementById('employee-hire-date').value
+            };
+            const method = id ? 'PUT' : 'POST';
+            const url = id ? `/api/admin/employees/${id}` : '/api/admin/employees';
+
+            fetch(url, {
+                    method,
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify(payload),
+                    credentials: "include"
+                })
+                .then(res => res.json())
+                .then(data => {
+                    if (data.success) {
+                        showNotification("Employee saved");
+                        closeModal('employee-modal');
+                        loadEmployees();
+                    }
+                });
+        });
+
+        function searchProducts() {
+            const query = document.getElementById('product-search').value.trim();
+            const category = document.getElementById('product-category-filter').value;
+
+            let url = '/api/admin/products/search';
+            const params = new URLSearchParams();
+            if (query) params.append('q', query);
+            if (category) params.append('category', category);
+            if ([...params].length) url += '?' + params.toString();
+
+            fetch(url, {
+                    credentials: 'include'
+                })
+                .then(res => res.json())
+                .then(data => {
+                    const tbody = document.querySelector('#products-table tbody');
+                    if (data.success && data.products.length > 0) {
+                        tbody.innerHTML = data.products.map(product => `
+          <tr>
+            <td>${product.product_id}</td>
+            <td>${product.name}</td>
+            <td>${product.category_name || 'No Category'}</td>
+            <td>${product.price} บาท</td>
+            <td><span class="status-badge status-${product.status}">${product.status}</span></td>
+            <td>
+              <button class="btn-edit" onclick="editProduct(${product.product_id})">Edit</button>
+              <button class="btn-delete" onclick="deleteProduct(${product.product_id})">Delete</button>
+            </td>
+          </tr>
+        `).join('');
+                    } else {
+                        tbody.innerHTML = '<tr><td colspan="6">No products found</td></tr>';
+                    }
+                })
+                .catch(err => {
+                    console.error('Error searching products:', err);
+                    document.querySelector('#products-table tbody').innerHTML =
+                        '<tr><td colspan="6">Error loading products</td></tr>';
+                });
+        }
+
+        document.getElementById('product-search-btn').addEventListener('click', searchProducts);
+        document.getElementById('product-search').addEventListener('keyup', e => {
+            if (e.key === 'Enter') searchProducts();
+        });
+        document.getElementById('product-category-filter').addEventListener('change', searchProducts);
+        document.getElementById('product-reset-btn').addEventListener('click', () => {
+            document.getElementById('product-search').value = '';
+            document.getElementById('product-category-filter').value = '';
+            loadProducts();
+        });
+    </script>
+</body>
+
+</html>

@@ -1,4 +1,5 @@
 const path = require("path");
+const bcrypt = require("bcryptjs");
 const sqlite3 = require("sqlite3").verbose();
 
 const dbPath = path.join(__dirname, "database", "database.db");
@@ -161,10 +162,34 @@ function insertSampleCustomerCoupons() {
   });
 }
 
+function insertAdmin() {
+  const admin = {
+    name: "Administrator",
+    email: "admin@tkfood.com",
+    password: "admin123", // เดี๋ยวเราจะ hash
+    phone: "0999999999",
+    role: "admin"
+  };
+
+  // Hash password ก่อน insert
+  const hashedPassword = bcrypt.hashSync(admin.password, 10);
+
+  const stmt = db.prepare(`
+    INSERT OR IGNORE INTO Users (name, email, password, phone, role)
+    VALUES (?, ?, ?, ?, ?)
+  `);
+
+  stmt.run([admin.name, admin.email, hashedPassword, admin.phone, admin.role]);
+  stmt.finalize();
+
+  console.log("✅ Admin user inserted (email: " + admin.email + ")");
+}
+
 db.serialize(() => {
   insertCategories();
   insertProducts();
   insertPromotions();
+  insertAdmin();
   
   // Insert sample customer coupons after a brief delay to ensure promotions are inserted
   setTimeout(() => {

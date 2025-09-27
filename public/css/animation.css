@@ -17,3 +17,13 @@
 .fade-slide.show {
   animation: fadeUp 0.8s ease forwards;
 }
+
+@keyframes fadeImages {
+  0%   { background-image: url('/images/fade-background/1.jpg'); opacity: 1; }
+  30%  { background-image: url('/images/fade-background/1.jpg'); opacity: 1; }
+  33%  { background-image: url('/images/fade-background/2.jpg'); opacity: 0.7; }
+  63%  { background-image: url('/images/fade-background/2.jpg'); opacity: 1; }
+  66%  { background-image: url('/images/fade-background/3.jpg'); opacity: 0.7; }
+  96%  { background-image: url('/images/fade-background/3.jpg'); opacity: 1; }
+  100% { background-image: url('/images/fade-background/1.jpg'); opacity: 1; }
+}

@@ -193,31 +193,44 @@ html {
 
 /* Banner styles */
 .banner {
-    background: linear-gradient(135deg, #f9f9f9, #e0e0e0);
+    position: relative;
     padding: 60px 20px;
     display: flex;
     align-items: center;
     justify-content: center;
-    /* border-radius: var(--border-radius); */
     margin-bottom: 30px;
-    position: relative;
     overflow: hidden;
     height: 700px;
+    color: white;
+}
+
+.banner::before {
+    content: "";
+    position: absolute;
+    top: 0; left: 0;
+    width: 100%; height: 100%;
+    background-size: cover;
+    background-position: center;
+    background-image: url('/images/fade-background/1.jpg');
+    z-index: -1;
+    animation: fadeImages 15s infinite;
 }
 
 .content-banner {
+    position: relative;
     max-width: 800px;
     text-align: center;
     padding: 20px;
+    z-index: 1;
 }
 
 .content-banner h1 {
-    font-size: 2em;
+    font-size: 4em;
     font-weight: 600;
-    color: var(--color-primary);
+    color: #fff;
     margin: 0 auto;
     line-height: 1.4;
-    text-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
+    text-shadow: 0 2px 6px rgba(0, 0, 0, 0.4);
 }
 
 /* Sections */
