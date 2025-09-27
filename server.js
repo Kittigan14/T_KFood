@@ -31,9 +31,9 @@ app.use(session({
     secret: process.env.SESSION_SECRET || 'restaurant-session-secret',
     resave: false,
     saveUninitialized: false,
-    cookie: { 
+    cookie: {
         secure: false,
-        maxAge: 24 * 60 * 60 * 1000 
+        maxAge: 24 * 60 * 60 * 1000
     }
 }));
 
@@ -47,12 +47,24 @@ app.use((req, res, next) => {
     jwt.verify(token, JWT_SECRET, (err, user) => {
         if (err) {
             res.locals.user = null;
-        } else {
-            res.locals.user = user;
+            return next();
         }
-        next();
+
+        db.get(`SELECT customer_id, name, email, role FROM Users WHERE customer_id = ?`,
+            [user.customer_id],
+            (dbErr, dbUser) => {
+                if (dbErr || !dbUser) {
+                    res.locals.user = null;
+                    res.clearCookie('token');
+                    return next();
+                }
+
+                res.locals.user = dbUser;
+                next();
+            });
     });
 });
+
 
 // JWT Middleware
 const authenticateToken = (req, res, next) => {
@@ -79,6 +91,8 @@ const authenticateAdmin = (req, res, next) => {
     }
     next();
 };
+
+initializeDatabase();
 
 // Initialize Database Tables
 function initializeDatabase() {
@@ -139,8 +153,9 @@ function initializeDatabase() {
             cart_item_id INTEGER PRIMARY KEY AUTOINCREMENT,
             cart_id INTEGER,
             product_id INTEGER,
-            quantity INTEGER NOT NULL,
+            quantity INTEGER NOT NULL DEFAULT 1,
             price REAL NOT NULL,
+            updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
             FOREIGN KEY (cart_id) REFERENCES Carts(cart_id),
             FOREIGN KEY (product_id) REFERENCES Products(product_id)
         )
@@ -317,57 +332,60 @@ function initializeDatabase() {
             )
         `);
 
-    // Create indexes
-    db.run(`CREATE INDEX IF NOT EXISTS idx_promotions_status ON Promotions(status)`);
-    db.run(`CREATE INDEX IF NOT EXISTS idx_promotions_dates ON Promotions(start_date, end_date)`);
-    db.run(`CREATE INDEX IF NOT EXISTS idx_promotions_code ON Promotions(promo_code)`);
-    db.run(`CREATE INDEX IF NOT EXISTS idx_promotion_usage_customer ON Promotion_Usage(customer_id)`);
-    db.run(`CREATE INDEX IF NOT EXISTS idx_promotion_usage_promotion ON Promotion_Usage(promotion_id)`);
+    console.log("✅ Database initialized.");
 }
 
 app.get("/", (req, res) => {
-  try {
-    db.all("SELECT category_id, name FROM Categories", [], (err, categories) => {
-      if (err) return res.status(500).send("DB error: " + err.message);
+    try {
+        db.all("SELECT category_id, name FROM Categories", [], (err, categories) => {
+            if (err) return res.status(500).send("DB error: " + err.message);
 
-      db.all(`
+            db.all(`
         SELECT product_id, name, price, image_url, category_id 
         FROM Products 
         WHERE status = 'available'
         ORDER BY created_at DESC
-        LIMIT 4
+        
       `, [], (err, products) => {
-        if (err) return res.status(500).send("DB error: " + err.message);
+                if (err) return res.status(500).send("DB error: " + err.message);
 
-        db.all(`
+                db.all(`
           SELECT r.review_id, r.comment, r.rating, r.created_at, u.name 
           FROM Reviews r
           JOIN Users u ON r.customer_id = u.customer_id
           ORDER BY r.created_at DESC
           LIMIT 5
         `, [], (err, reviews) => {
-          if (err) return res.status(500).send("DB error: " + err.message);
+                    if (err) return res.status(500).send("DB error: " + err.message);
 
-          res.render("index", {
-            title: "T&KFood",
-            categories,
-            products,
-            reviews,
-            user: res.locals.user
-          });
+                    res.render("index", {
+                        title: "T&KFood",
+                        categories,
+                        products,
+                        reviews,
+                        user: res.locals.user
+                    });
+                });
+            });
         });
-      });
-    });
-  } catch (err) {
-    console.error("Error on / :", err);
-    res.status(500).send("เกิดข้อผิดพลาดในระบบ");
-  }
+    } catch (err) {
+        console.error("Error on / :", err);
+        res.status(500).send("เกิดข้อผิดพลาดในระบบ");
+    }
 });
 
-app.get('/login', (req, res) => res.render('login', { title: "เข้าสู่ระบบ" }));
-app.get('/register', (req, res) => res.render('register', { title: "สมัครสมาชิก" }));
-app.get('/cart', (req, res) => res.render('cart', { title: "ตะกร้าสินค้า", cart: req.session.cart || [] }));
-app.get('/favorites', (req, res) => res.render('favorites', { title: "สินค้าที่ถูกใจ", favorites: req.session.favorites || [] }));
+app.get('/login', (req, res) => res.render('login', {
+    title: "เข้าสู่ระบบ"
+}));
+app.get('/register', (req, res) => res.render('register', {
+    title: "สมัครสมาชิก"
+}));
+app.get('/cart', (req, res) => res.render('cart', {
+    title: "ตะกร้าสินค้า"
+}));
+app.get('/favorites', (req, res) => res.render('favorites', {
+    title: "สินค้าที่ถูกใจ"
+}));
 
 // Register
 app.post('/api/auth/register', (req, res) => {
@@ -424,32 +442,20 @@ app.post('/api/auth/register', (req, res) => {
 
 // Login
 app.post('/api/auth/login', (req, res) => {
-    const {
-        email,
-        password
-    } = req.body;
-
-    if (!email || !password) {
-        return res.status(400).send("กรุณากรอกอีเมลและรหัสผ่าน");
-    }
+    const { email, password } = req.body;
 
     db.get(`SELECT * FROM Users WHERE email = ?`, [email], (err, user) => {
-        if (err) return res.status(500).send("DB Error");
-
+        if (err) return res.status(500).json({ success: false, error: "DB Error" });
         if (!user || !bcrypt.compareSync(password, user.password)) {
-            return res.status(401).send("อีเมลหรือรหัสผ่านไม่ถูกต้อง");
+            return res.status(401).json({ success: false, error: "อีเมลหรือรหัสผ่านไม่ถูกต้อง" });
         }
 
         const token = jwt.sign({
-                customer_id: user.customer_id,
-                name: user.name,
-                email: user.email,
-                role: user.role
-            },
-            JWT_SECRET, {
-                expiresIn: '24h'
-            }
-        );
+            customer_id: user.customer_id,
+            name: user.name,
+            email: user.email,
+            role: user.role
+        }, JWT_SECRET, { expiresIn: '24h' });
 
         res.cookie("token", token, {
             httpOnly: true,
@@ -457,14 +463,14 @@ app.post('/api/auth/login', (req, res) => {
             maxAge: 24 * 60 * 60 * 1000
         });
 
-        res.redirect("/");
+        res.json({ success: true });
     });
 });
 
 
 app.get('/logout', (req, res) => {
-    res.clearCookie("token");
-    res.redirect("/");
+    res.clearCookie('token');
+    res.redirect('/');
 });
 
 app.get('/api/users', authenticateToken, authenticateAdmin, (req, res) => {
@@ -479,185 +485,331 @@ app.get('/api/users', authenticateToken, authenticateAdmin, (req, res) => {
     });
 });
 
-app.post('/api/cart/add', authenticateToken, (req, res) => {
-    const { product_id, quantity } = req.body;
-    const customer_id = req.user.customer_id;
+// Get cart items
+app.get('/api/cart', (req, res) => {
+    const token = req.cookies.token;
+    if (!token) {
+        return res.status(401).json({ error: 'กรุณาเข้าสู่ระบบก่อน' });
+    }
 
-    db.get(`SELECT cart_id FROM Carts WHERE customer_id = ?`, [customer_id], (err, cart) => {
-        if (err) return res.status(500).json({
-            error: err.message
+    jwt.verify(token, JWT_SECRET, (err, user) => {
+        if (err) return res.status(403).json({ error: 'Invalid token' });
+
+        const customer_id = user.customer_id;
+        const query = `
+            SELECT ci.cart_item_id, ci.product_id, p.name, p.price, ci.quantity, 
+                   (ci.price * ci.quantity) as total, p.image_url
+            FROM Cart_Items ci
+            JOIN Carts c ON ci.cart_id = c.cart_id
+            JOIN Products p ON ci.product_id = p.product_id
+            WHERE c.customer_id = ? AND p.status = 'available'
+            ORDER BY ci.cart_item_id DESC
+        `;
+        
+        db.all(query, [customer_id], (err, rows) => {
+            if (err) {
+                console.error('Cart query error:', err);
+                return res.status(500).json({ error: err.message });
+            }
+            res.json({ success: true, cart: rows });
         });
-
-        if (!cart) {
-            db.run(`INSERT INTO Carts (customer_id) VALUES (?)`, [customer_id], function (err) {
-                if (err) return res.status(500).json({
-                    error: err.message
-                });
-                addCartItem(this.lastID);
-            });
-        } else {
-            addCartItem(cart.cart_id);
-        }
     });
+});
 
-    function addCartItem(cart_id) {
-        db.run(
-            `INSERT INTO Cart_Items (cart_id, product_id, quantity, price) 
-             VALUES (?, ?, ?, (SELECT price FROM Products WHERE product_id = ?))`,
-            [cart_id, product_id, quantity, product_id],
-            function (err) {
-                if (err) return res.status(500).json({
-                    error: err.message
+// Add product to cart
+app.post('/api/cart/add', (req, res) => {
+    const token = req.cookies.token;
+    if (!token) {
+        return res.status(401).json({ error: 'กรุณาเข้าสู่ระบบก่อน' });
+    }
+
+    jwt.verify(token, JWT_SECRET, (err, user) => {
+        if (err) return res.status(403).json({ error: 'Invalid token' });
+
+        console.log("Decoded user from JWT:", user);
+        const { product_id, quantity = 1 } = req.body;
+        const customer_id = user.customer_id;
+
+        if (!product_id) {
+            return res.status(400).json({ error: 'ต้องระบุสินค้า' });
+        }
+
+        // First check if product exists and is available
+        db.get(`SELECT product_id, price FROM Products WHERE product_id = ? AND status = 'available'`, 
+            [product_id], (err, product) => {
+            if (err) return res.status(500).json({ error: err.message });
+            if (!product) return res.status(404).json({ error: 'ไม่พบสินค้าหรือสินค้าไม่พร้อมจำหน่าย' });
+
+            // Get or create cart
+            db.get(`SELECT cart_id FROM Carts WHERE customer_id = ?`, [customer_id], (err, cart) => {
+                if (err) return res.status(500).json({ error: err.message });
+
+                const ensureCart = (cart_id) => {
+                    // Check if item already exists in cart
+                    db.get(`SELECT cart_item_id, quantity FROM Cart_Items WHERE cart_id = ? AND product_id = ?`,
+                        [cart_id, product_id], (err, item) => {
+                        if (err) return res.status(500).json({ error: err.message });
+
+                        if (item) {
+                            // Update existing item
+                            db.run(`UPDATE Cart_Items SET quantity = quantity + ?, 
+                                    updated_at = CURRENT_TIMESTAMP WHERE cart_item_id = ?`,
+                                [quantity, item.cart_item_id], function (err) {
+                                if (err) return res.status(500).json({ error: err.message });
+                                res.json({ success: true, message: 'อัปเดตจำนวนสินค้าในตะกร้าแล้ว', updated: true });
+                            });
+                        } else {
+                            // Add new item
+                            db.run(`INSERT INTO Cart_Items (cart_id, product_id, quantity, price)
+                                    VALUES (?, ?, ?, ?)`,
+                                [cart_id, product_id, quantity, product.price], function (err) {
+                                if (err) return res.status(500).json({ error: err.message });
+                                res.json({ success: true, message: 'เพิ่มสินค้าลงตะกร้าเรียบร้อย', added: true });
+                            });
+                        }
+                    });
+                };
+
+                if (!cart) {
+                    // Create new cart
+                    db.run(`INSERT INTO Carts (customer_id) VALUES (?)`, [customer_id], function (err) {
+                        if (err) return res.status(500).json({ error: err.message });
+                        ensureCart(this.lastID);
+                    });
+                } else {
+                    ensureCart(cart.cart_id);
+                }
+            });
+        });
+    });
+});
+
+// Update product quantity in cart
+app.post('/api/cart/update', (req, res) => {
+    const token = req.cookies.token;
+    if (!token) {
+        return res.status(401).json({ error: 'กรุณาเข้าสู่ระบบก่อน' });
+    }
+
+    jwt.verify(token, JWT_SECRET, (err, user) => {
+        if (err) return res.status(403).json({ error: 'Invalid token' });
+
+        const { itemId, quantity } = req.body;
+        const customer_id = user.customer_id;
+
+        if (!itemId || quantity === undefined) {
+            return res.status(400).json({ error: 'ข้อมูลไม่ครบถ้วน' });
+        }
+
+        // Get user's cart
+        db.get(`SELECT cart_id FROM Carts WHERE customer_id = ?`, [customer_id], (err, cart) => {
+            if (err) return res.status(500).json({ error: err.message });
+            if (!cart) return res.status(404).json({ error: 'ไม่พบตะกร้าสินค้า' });
+
+            if (quantity <= 0) {
+                // Remove item if quantity is 0 or negative
+                db.run(`DELETE FROM Cart_Items WHERE cart_id = ? AND product_id = ?`,
+                    [cart.cart_id, itemId], function (err) {
+                    if (err) return res.status(500).json({ error: err.message });
+                    res.json({ 
+                        success: true, 
+                        message: 'ลบสินค้าออกจากตะกร้าแล้ว', 
+                        removed: this.changes > 0 
+                    });
                 });
-                res.json({
-                    success: true,
-                    cart_item_id: this.lastID
+            } else {
+                // Update quantity
+                db.run(`UPDATE Cart_Items SET quantity = ?, updated_at = CURRENT_TIMESTAMP 
+                        WHERE cart_id = ? AND product_id = ?`,
+                    [quantity, cart.cart_id, itemId], function (err) {
+                    if (err) return res.status(500).json({ error: err.message });
+                    res.json({ 
+                        success: true, 
+                        message: 'อัปเดตจำนวนสินค้าแล้ว', 
+                        updated: this.changes > 0 
+                    });
                 });
             }
-        );
-    }
-});
-
-app.post("/cart/add/:id", (req, res) => {
-    if (!req.session.cart) req.session.cart = [];
-    const id = parseInt(req.params.id);
-    
-    db.get("SELECT * FROM Products WHERE product_id = ? AND status = 'available'", [id], (err, product) => {
-        if (err) {
-            console.error("Database error:", err);
-            return res.status(500).json({ error: "Database error" });
-        }
-        
-        if (!product) {
-            return res.status(404).json({ error: "Product not found" });
-        }
-        
-        let cart = req.session.cart;
-        let item = cart.find(i => i.product_id === id);
-        
-        if (item) {
-            item.quantity++;
-        } else {
-            cart.push({
-                ...product,
-                quantity: 1
-            });
-        }
-        
-        if (req.headers.accept && req.headers.accept.includes('application/json')) {
-            return res.json({ 
-                success: true, 
-                message: "เพิ่มสินค้าลงตะกร้าเรียบร้อย",
-                cartCount: cart.reduce((total, item) => total + item.quantity, 0)
-            });
-        }
-        
-        res.redirect("/cart");
-    });
-});
-
-app.post('/api/cart/update/:id', (req, res) => {
-    const id = parseInt(req.params.id);
-    const { quantity } = req.body;
-    
-    if (!req.session.cart) {
-        return res.status(400).json({ error: "ไม่พบตะกร้าสินค้า" });
-    }
-    
-    const cart = req.session.cart;
-    const itemIndex = cart.findIndex(item => item.product_id === id);
-    
-    if (itemIndex === -1) {
-        return res.status(404).json({ error: "ไม่พบสินค้าในตะกร้า" });
-    }
-    
-    if (quantity <= 0) {
-        cart.splice(itemIndex, 1);
-    } else {
-        cart[itemIndex].quantity = parseInt(quantity);
-    }
-    
-    res.json({ 
-        success: true,
-        cartCount: cart.reduce((total, item) => total + item.quantity, 0)
-    });
-});
-
-app.post("/cart/remove/:id", (req, res) => {
-    const id = parseInt(req.params.id);
-    
-    if (req.session.cart) {
-        req.session.cart = req.session.cart.filter(i => i.product_id !== id);
-    }
-    
-    if (req.headers.accept && req.headers.accept.includes('application/json')) {
-        return res.json({ 
-            success: true,
-            message: "ลบสินค้าออกจากตะกร้าเรียบร้อย"
         });
-    }
-    
-    res.redirect("/cart");
-});
-
-app.post("/favorites/add/:id", (req, res) => {
-    if (!req.session.favorites) req.session.favorites = [];
-    const id = parseInt(req.params.id);
-    
-    db.get("SELECT * FROM Products WHERE product_id = ? AND status = 'available'", [id], (err, product) => {
-        if (err) {
-            console.error("Database error:", err);
-            return res.status(500).json({ error: "Database error" });
-        }
-        
-        if (!product) {
-            return res.status(404).json({ error: "Product not found" });
-        }
-        
-        let favorites = req.session.favorites;
-        
-        if (!favorites.find(i => i.product_id === id)) {
-            favorites.push(product);
-        }
-        
-        if (req.headers.accept && req.headers.accept.includes('application/json')) {
-            return res.json({ 
-                success: true, 
-                message: "เพิ่มเป็นสินค้าที่ชอบเรียบร้อย",
-                favoriteCount: favorites.length
-            });
-        }
-        
-        res.redirect("/favorites");
     });
 });
 
-app.post("/favorites/remove/:id", (req, res) => {
-    const id = parseInt(req.params.id);
-    
-    if (req.session.favorites) {
-        req.session.favorites = req.session.favorites.filter(i => i.product_id !== id);
+// Remove product from cart
+app.delete('/api/cart/remove/:id', (req, res) => {
+    const token = req.cookies.token;
+    if (!token) {
+        return res.status(401).json({ error: 'กรุณาเข้าสู่ระบบก่อน' });
     }
-    
-    if (req.headers.accept && req.headers.accept.includes('application/json')) {
-        return res.json({ 
-            success: true,
-            message: "ลบสินค้าออกจากรายการโปรดเรียบร้อย"
+
+    jwt.verify(token, JWT_SECRET, (err, user) => {
+        if (err) return res.status(403).json({ error: 'Invalid token' });
+
+        const product_id = parseInt(req.params.id);
+        const customer_id = user.customer_id;
+
+        db.get(`SELECT cart_id FROM Carts WHERE customer_id = ?`, [customer_id], (err, cart) => {
+            if (err) return res.status(500).json({ error: err.message });
+            if (!cart) return res.status(404).json({ error: 'ไม่พบตะกร้าสินค้า' });
+
+            db.run(`DELETE FROM Cart_Items WHERE cart_id = ? AND product_id = ?`,
+                [cart.cart_id, product_id], function (err) {
+                if (err) return res.status(500).json({ error: err.message });
+                res.json({ 
+                    success: true, 
+                    message: 'ลบสินค้าออกจากตะกร้าเรียบร้อย', 
+                    removed: this.changes > 0 
+                });
+            });
         });
-    }
-    
-    res.redirect("/favorites");
+    });
 });
 
 app.get('/api/cart/count', (req, res) => {
-    const cart = req.session.cart || [];
-    const count = cart.reduce((total, item) => total + item.quantity, 0);
-    res.json({ count });
+    const token = req.cookies.token;
+    if (!token) {
+        return res.json({ count: 0 });
+    }
+
+    jwt.verify(token, JWT_SECRET, (err, user) => {
+        if (err) return res.json({ count: 0 });
+
+        const customer_id = user.customer_id;
+        const query = `
+            SELECT COALESCE(SUM(ci.quantity), 0) as count
+            FROM Cart_Items ci
+            JOIN Carts c ON ci.cart_id = c.cart_id
+            WHERE c.customer_id = ?
+        `;
+        
+        db.get(query, [customer_id], (err, row) => {
+            if (err) return res.json({ count: 0 });
+            res.json({ count: row.count || 0 });
+        });
+    });
 });
 
+// Get favorites
+app.get('/api/favorites', (req, res) => {
+    const token = req.cookies.token;
+    if (!token) {
+        return res.status(401).json({ error: 'กรุณาเข้าสู่ระบบก่อน' });
+    }
+
+    jwt.verify(token, JWT_SECRET, (err, user) => {
+        if (err) return res.status(403).json({ error: 'Invalid token' });
+
+        const customer_id = user.customer_id;
+        const query = `
+            SELECT f.favorite_id, f.product_id, p.name, p.price, p.image_url, f.created_at
+            FROM Favorites f
+            JOIN Products p ON f.product_id = p.product_id
+            WHERE f.customer_id = ? AND p.status = 'available'
+            ORDER BY f.created_at DESC
+        `;
+        
+        db.all(query, [customer_id], (err, rows) => {
+            if (err) {
+                console.error('Favorites query error:', err);
+                return res.status(500).json({ error: err.message });
+            }
+            res.json({ success: true, favorites: rows });
+        });
+    });
+});
+
+// Add to favorites
+app.post('/api/favorites/add/:id', (req, res) => {
+    const token = req.cookies.token;
+    if (!token) {
+        return res.status(401).json({ error: 'กรุณาเข้าสู่ระบบก่อน' });
+    }
+
+    jwt.verify(token, JWT_SECRET, (err, user) => {
+        if (err) return res.status(403).json({ error: 'Invalid token' });
+
+        const product_id = parseInt(req.params.id);
+        const customer_id = user.customer_id;
+
+        if (!product_id || isNaN(product_id)) {
+            return res.status(400).json({ error: 'รหัสสินค้าไม่ถูกต้อง' });
+        }
+
+        // Check if product exists
+        db.get(`SELECT product_id FROM Products WHERE product_id = ? AND status = 'available'`, 
+            [product_id], (err, product) => {
+            if (err) return res.status(500).json({ error: err.message });
+            if (!product) return res.status(404).json({ error: 'ไม่พบสินค้า' });
+
+            // Check if already in favorites
+            db.get(`SELECT favorite_id FROM Favorites WHERE customer_id = ? AND product_id = ?`,
+                [customer_id, product_id], (err, row) => {
+                if (err) return res.status(500).json({ error: err.message });
+
+                if (row) {
+                    return res.json({ 
+                        success: true, 
+                        message: 'สินค้าอยู่ใน Favorites อยู่แล้ว',
+                        already_exists: true 
+                    });
+                }
+
+                // Add to favorites
+                db.run(`INSERT INTO Favorites (customer_id, product_id) VALUES (?, ?)`,
+                    [customer_id, product_id], function (err) {
+                    if (err) return res.status(500).json({ error: err.message });
+                    res.json({ 
+                        success: true, 
+                        message: 'เพิ่มเป็นสินค้าที่ชอบเรียบร้อย',
+                        favorite_id: this.lastID 
+                    });
+                });
+            });
+        });
+    });
+});
+
+// Remove from favorites
+app.delete('/api/favorites/remove/:id', (req, res) => {
+    const token = req.cookies.token;
+    if (!token) {
+        return res.status(401).json({ error: 'กรุณาเข้าสู่ระบบก่อน' });
+    }
+
+    jwt.verify(token, JWT_SECRET, (err, user) => {
+        if (err) return res.status(403).json({ error: 'Invalid token' });
+
+        const product_id = parseInt(req.params.id);
+        const customer_id = user.customer_id;
+
+        db.run(`DELETE FROM Favorites WHERE customer_id = ? AND product_id = ?`,
+            [customer_id, product_id], function (err) {
+            if (err) return res.status(500).json({ error: err.message });
+            res.json({ 
+                success: true, 
+                message: 'ลบออกจากรายการโปรดเรียบร้อย',
+                removed: this.changes > 0 
+            });
+        });
+    });
+});
+
+// Count favorites
 app.get('/api/favorites/count', (req, res) => {
-    const favorites = req.session.favorites || [];
-    res.json({ count: favorites.length });
+    const token = req.cookies.token;
+    if (!token) {
+        return res.json({ count: 0 });
+    }
+
+    jwt.verify(token, JWT_SECRET, (err, user) => {
+        if (err) return res.json({ count: 0 });
+
+        const customer_id = user.customer_id;
+        db.get(`SELECT COUNT(*) as count FROM Favorites WHERE customer_id = ?`,
+            [customer_id], (err, row) => {
+            if (err) return res.json({ count: 0 });
+            res.json({ count: row.count || 0 });
+        });
+    });
 });
 
 // Get all active promotions
@@ -832,7 +984,7 @@ app.get('/api/categories', (req, res) => {
         GROUP BY c.category_id
         ORDER BY c.name
     `;
-    
+
     db.all(query, [], (err, rows) => {
         if (err) {
             console.error("Database error:", err.message);
@@ -841,7 +993,7 @@ app.get('/api/categories', (req, res) => {
                 error: "เกิดข้อผิดพลาดในการดึงข้อมูลหมวดหมู่"
             });
         }
-        
+
         res.json({
             success: true,
             categories: rows
@@ -851,8 +1003,12 @@ app.get('/api/categories', (req, res) => {
 
 // Get products
 app.get('/api/products', (req, res) => {
-    const { category_id, search, limit = 50 } = req.query;
-    
+    const {
+        category_id,
+        search,
+        limit = 50
+    } = req.query;
+
     let query = `
         SELECT p.product_id, p.name, p.price, p.image_url, p.category_id, p.description,
                c.name as category_name
@@ -861,20 +1017,20 @@ app.get('/api/products', (req, res) => {
         WHERE p.status = 'available'
     `;
     const params = [];
-    
+
     if (category_id) {
         query += " AND p.category_id = ?";
         params.push(category_id);
     }
-    
+
     if (search) {
         query += " AND (p.name LIKE ? OR p.description LIKE ?)";
         params.push(`%${search}%`, `%${search}%`);
     }
-    
+
     query += " ORDER BY p.created_at DESC LIMIT ?";
     params.push(parseInt(limit));
-    
+
     db.all(query, params, (err, rows) => {
         if (err) {
             console.error("Database error:", err.message);
@@ -883,7 +1039,7 @@ app.get('/api/products', (req, res) => {
                 error: "เกิดข้อผิดพลาดในการดึงข้อมูลสินค้า"
             });
         }
-        
+
         res.json({
             success: true,
             products: rows,
@@ -918,15 +1074,17 @@ app.post('/api/products', authenticateToken, authenticateAdmin, (req, res) => {
 });
 
 app.get('/api/search', (req, res) => {
-    const { q } = req.query;
-    
+    const {
+        q
+    } = req.query;
+
     if (!q || q.trim().length < 2) {
         return res.status(400).json({
             success: false,
             error: "คำค้นหาต้องมีอย่างน้อย 2 ตัวอักษร"
         });
     }
-    
+
     const query = `
         SELECT p.*, c.name as category_name
         FROM Products p
@@ -936,9 +1094,9 @@ app.get('/api/search', (req, res) => {
         ORDER BY p.name
         LIMIT 20
     `;
-    
+
     const searchTerm = `%${q.trim()}%`;
-    
+
     db.all(query, [searchTerm, searchTerm, searchTerm], (err, rows) => {
         if (err) {
             console.error("Search error:", err.message);
@@ -947,7 +1105,7 @@ app.get('/api/search', (req, res) => {
                 error: "เกิดข้อผิดพลาดในการค้นหา"
             });
         }
-        
+
         res.json({
             success: true,
             products: rows,
@@ -1008,14 +1166,14 @@ app.post('/api/reviews', authenticateToken, (req, res) => {
 
 app.use((err, req, res, next) => {
     console.error(err.stack);
-    
+
     if (req.headers.accept && req.headers.accept.includes('application/json')) {
         res.status(500).json({
             success: false,
             error: 'เกิดข้อผิดพลาดภายในเซิร์ฟเวอร์'
         });
     } else {
-        res.status(500).render('error', {
+        res.status(500).render('404', {
             title: 'เกิดข้อผิดพลาด',
             message: 'เกิดข้อผิดพลาดภายในเซิร์ฟเวอร์'
         });
@@ -1039,7 +1197,6 @@ app.listen(PORT, () => {
     console.log(`🚀 Restaurant Server running on port ${PORT}`);
     console.log(`📊 Database: ${dbPath}`);
     console.log(`🌐 Web: http://localhost:${PORT}`);
-    initializeDatabase();
 });
 
 module.exports = app;

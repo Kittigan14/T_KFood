@@ -1,0 +1,179 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>ไม่พบหน้าที่ต้องการ - 404</title>
+  <link rel="stylesheet" href="/css/base.css">
+  <link rel="stylesheet" href="/css/auth.css">
+  <style>
+    .error-container {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      min-height: 100vh;
+      text-align: center;
+      padding: 40px 20px;
+    }
+
+    .error-code {
+      font-size: 8rem;
+      font-weight: 900;
+      color: var(--color-primary);
+      opacity: 0.1;
+      line-height: 0.8;
+      margin-bottom: 20px;
+    }
+
+    .error-title {
+      font-size: 2.5rem;
+      font-weight: 700;
+      color: var(--color-primary);
+      margin-bottom: 20px;
+    }
+
+    .error-message {
+      font-size: 1.2rem;
+      color: var(--color-primary);
+      opacity: 0.7;
+      margin-bottom: 40px;
+      max-width: 500px;
+      line-height: 1.6;
+    }
+
+    .error-actions {
+      display: flex;
+      gap: 20px;
+      flex-wrap: wrap;
+      justify-content: center;
+    }
+
+    .btn-home {
+      background: var(--color-primary);
+      color: var(--color-background);
+      text-decoration: none;
+      padding: 14px 28px;
+      border-radius: var(--border-radius);
+      font-weight: 600;
+      transition: all var(--transition-duration) ease;
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .btn-home:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 8px 25px var(--shadow-soft);
+      opacity: 0.9;
+    }
+
+    .btn-back {
+      background: var(--color-accent);
+      color: var(--color-primary);
+      text-decoration: none;
+      padding: 14px 28px;
+      border-radius: var(--border-radius);
+      font-weight: 600;
+      transition: all var(--transition-duration) ease;
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      border: 1px solid var(--color-accent);
+    }
+
+    .btn-back:hover {
+      background: var(--color-primary);
+      color: var(--color-background);
+      transform: translateY(-2px);
+      box-shadow: 0 8px 25px var(--shadow-soft);
+    }
+
+    .error-illustration {
+      margin-bottom: 30px;
+      opacity: 0.6;
+    }
+
+    @media (max-width: 768px) {
+      .error-code {
+        font-size: 6rem;
+      }
+
+      .error-title {
+        font-size: 2rem;
+      }
+
+      .error-message {
+        font-size: 1.1rem;
+      }
+
+      .error-actions {
+        flex-direction: column;
+        align-items: center;
+      }
+
+      .btn-home, .btn-back {
+        width: 200px;
+        justify-content: center;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="error-container">
+    <div class="error-illustration">
+      <!-- Simple SVG illustration -->
+      <svg width="120" height="120" viewBox="0 0 120 120" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <circle cx="60" cy="60" r="50" stroke="currentColor" stroke-width="2" fill="none" opacity="0.3"/>
+        <path d="M40 45 L80 75 M80 45 L40 75" stroke="currentColor" stroke-width="3" stroke-linecap="round"/>
+        <circle cx="60" cy="95" r="3" fill="currentColor" opacity="0.5"/>
+      </svg>
+    </div>
+    
+    <div class="error-code">404</div>
+    
+    <h1 class="error-title">ไม่พบหน้าที่ต้องการ</h1>
+    
+    <p class="error-message">
+      ขออภัย หน้าที่คุณกำลังมองหาไม่พบ อาจถูกย้ายหรือลบไปแล้ว
+      กรุณาตรวจสอบ URL หรือลองใช้เมนูเพื่อไปยังหน้าอื่น
+    </p>
+    
+    <div class="error-actions">
+
+      <a href="javascript:history.back()" class="btn-back">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <path d="M19 12H5M5 12L12 19M5 12L12 5" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+        </svg>
+        ย้อนกลับ
+      </a>
+    </div>
+  </div>
+
+  <script>
+    // Add some interactivity
+    document.addEventListener('DOMContentLoaded', function() {
+      // Animate the error code on load
+      const errorCode = document.querySelector('.error-code');
+      errorCode.style.opacity = '0';
+      errorCode.style.transform = 'scale(0.8)';
+      
+      setTimeout(() => {
+        errorCode.style.transition = 'all 0.6s ease';
+        errorCode.style.opacity = '0.1';
+        errorCode.style.transform = 'scale(1)';
+      }, 100);
+
+      // Add click effect to buttons
+      document.querySelectorAll('.btn-home, .btn-back').forEach(btn => {
+        btn.addEventListener('click', function(e) {
+          this.style.transform = 'translateY(0) scale(0.95)';
+          setTimeout(() => {
+            this.style.transform = '';
+          }, 150);
+        });
+      });
+    });
+  </script>
+</body>
+</html>

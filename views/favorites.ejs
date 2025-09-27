@@ -1,29 +1,292 @@
 <!DOCTYPE html>
 <html lang="th">
+
 <head>
   <meta charset="UTF-8">
-  <title>สินค้าที่ชื่นชอบ</title>
-  <link rel="stylesheet" href="/css/style.css">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>สินค้าที่ถูกใจ</title>
+  <link rel="stylesheet" href="/css/base.css">
+  <link rel="stylesheet" href="/css/cart.css">
+  <link rel="stylesheet" href="/css/notification.css">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
 </head>
+
 <body>
   <div class="container">
-    <h2>❤️ สินค้าที่คุณถูกใจ</h2>
+    <h2>
+      <img src="/images/icon/heart.png" alt="">
+      สินค้าที่ถูกใจ
+    </h2>
 
-    <div class="products">
-      <% if (favorites && favorites.length > 0) { %>
-        <% favorites.forEach(p => { %>
-          <div class="product-card">
-            <img src="/images/<%= p.image_url %>">
-            <div class="info">
-              <h3><%= p.name %></h3>
-              <p><%= p.price %> บาท</p>
-            </div>
-          </div>
-        <% }) %>
-      <% } else { %>
-        <p>ยังไม่มีสินค้าที่คุณถูกใจ</p>
-      <% } %>
+    <div id="favorites-container" class="cart-container">
+      <div class="loading">กำลังโหลด...</div>
+    </div>
+
+    <!-- Notification -->
+    <div id="notification" class="notification hidden">
+      <span id="notificationMessage"></span>
     </div>
   </div>
+
+  <script>
+    class FavoritesPage {
+      constructor() {
+        this.container = document.getElementById('favorites-container');
+        this.favoritesData = [];
+        this.loadFavorites();
+      }
+
+      async loadFavorites() {
+        try {
+          this.showLoading();
+          const res = await fetch('/api/favorites', {
+            headers: {
+              'Accept': 'application/json'
+            }
+          });
+
+          if (res.status === 401) {
+            this.showLoginRequired();
+            return;
+          }
+
+          const data = await res.json();
+
+          if (!data.success) {
+            throw new Error(data.error || 'เกิดข้อผิดพลาดในการโหลดรายการโปรด');
+          }
+
+          this.favoritesData = data.favorites || [];
+
+          if (this.favoritesData.length === 0) {
+            this.renderEmpty();
+          } else {
+            this.renderTable(this.favoritesData);
+          }
+        } catch (err) {
+          console.error('Error loading favorites:', err);
+          this.showError('เกิดข้อผิดพลาดในการโหลดรายการโปรด: ' + err.message);
+        }
+      }
+
+      showLoading() {
+        this.container.innerHTML = `
+          <div class="loading-container">
+            <div class="loading-spinner"></div>
+            <p>กำลังโหลดรายการโปรด...</p>
+          </div>
+        `;
+      }
+
+      showLoginRequired() {
+        this.container.innerHTML = `
+          <div class="empty-cart">
+            <h3>กรุณาเข้าสู่ระบบ</h3>
+            <p>คุณต้องเข้าสู่ระบบก่อนดูรายการโปรด</p>
+            <a href="/login" class="continue-shopping-btn">เข้าสู่ระบบ</a>
+          </div>
+        `;
+      }
+
+      showError(message) {
+        this.container.innerHTML = `
+          <div class="empty-cart">
+            <h3>เกิดข้อผิดพลาด</h3>
+            <p>${message}</p>
+            <button onclick="location.reload()" class="continue-shopping-btn">ลองใหม่</button>
+            <a href="/" class="continue-shopping-btn">กลับหน้าแรก</a>
+          </div>
+        `;
+      }
+
+      renderEmpty() {
+        this.container.innerHTML = `
+          <div class="empty-cart">
+            <h3>ยังไม่มีสินค้าที่ถูกใจ</h3>
+            <p>เพิ่มสินค้าที่คุณชื่นชอบได้เลย</p>
+            <a href="/" class="continue-shopping-btn">เลือกซื้อสินค้า</a>
+          </div>
+        `;
+      }
+
+      renderTable(favorites) {
+        const rows = favorites.map(item => `
+          <tr data-item-id="${item.product_id}">
+            <td data-label="สินค้า" class="product-info">
+              <img src="/images/${item.image_url}" alt="${item.name}" class="product-image">
+              <div class="product-details">
+                <span class="product-name">${item.name}</span>
+                <small class="favorite-date">เพิ่มเมื่อ: ${new Date(item.created_at).toLocaleDateString('th-TH')}</small>
+              </div>
+            </td>
+            <td data-label="ราคา" class="product-price">${item.price} บาท</td>
+            <td data-label="จัดการ" class="actions">
+              <button class="add-to-cart-btn" data-item-id="${item.product_id}" title="เพิ่มลงตะกร้า">
+                เพิ่มลงตะกร้า
+              </button>
+              <button class="remove-btn" data-item-id="${item.product_id}" title="ลบออกจากรายการโปรด">
+                ลบ
+              </button>
+            </td>
+          </tr>
+        `).join('');
+
+        this.container.innerHTML = `
+          <div class="favorites-header">
+            <p>คุณมีสินค้าที่ชื่นชอบ ${favorites.length} รายการ</p>
+          </div>
+          <table class="cart-table">
+            <thead>
+              <tr>
+                <th>สินค้า</th>
+                <th>ราคา</th>
+                <th>จัดการ</th>
+              </tr>
+            </thead>
+            <tbody>${rows}</tbody>
+          </table>
+          <div class="cart-actions">
+            <a href="/" class="continue-shopping">เลือกสินค้าเพิ่ม</a>
+          </div>
+        `;
+
+        // Add event listeners
+        this.container.querySelectorAll('.remove-btn').forEach(btn => {
+          btn.addEventListener('click', this.handleRemove.bind(this));
+        });
+
+        this.container.querySelectorAll('.add-to-cart-btn').forEach(btn => {
+          btn.addEventListener('click', this.handleAddToCart.bind(this));
+        });
+      }
+
+      async handleRemove(event) {
+        const button = event.target;
+        const itemId = parseInt(button.dataset.itemId);
+        const row = button.closest('tr');
+        const productName = row.querySelector('.product-name').textContent;
+
+        // Confirm removal
+        if (!confirm(`คุณต้องการลบ "${productName}" ออกจากรายการโปรดหรือไม่?`)) {
+          return;
+        }
+
+        // Disable button during removal
+        button.disabled = true;
+        button.textContent = 'กำลังลบ...';
+
+        // Add removal animation
+        row.style.transition = 'all 0.3s ease';
+        row.style.transform = 'translateX(-100%)';
+        row.style.opacity = '0';
+
+        try {
+          const res = await fetch(`/api/favorites/remove/${itemId}`, {
+            method: 'DELETE',
+            headers: {
+              'Accept': 'application/json'
+            }
+          });
+
+          const data = await res.json();
+
+          if (!res.ok || !data.success) {
+            throw new Error(data.error || 'เกิดข้อผิดพลาดในการลบสินค้า');
+          }
+
+          setTimeout(() => {
+            row.remove();
+
+            // Update local data
+            this.favoritesData = this.favoritesData.filter(item => item.product_id != itemId);
+
+            this.showNotification(data.message || 'ลบออกจากรายการโปรดเรียบร้อย', 'success');
+
+            // Update header count
+            const headerElement = document.querySelector('.favorites-header p');
+            if (headerElement) {
+              headerElement.textContent = `คุณมีสินค้าที่ชื่นชอบ ${this.favoritesData.length} รายการ`;
+            }
+
+            // Check if favorites list is now empty
+            if (this.favoritesData.length === 0) {
+              this.renderEmpty();
+            }
+          }, 300);
+
+        } catch (err) {
+          console.error('Error removing favorite:', err);
+          // Revert animation
+          row.style.transform = 'translateX(0)';
+          row.style.opacity = '1';
+          button.disabled = false;
+          button.textContent = 'ลบ';
+          this.showNotification('เกิดข้อผิดพลาดในการลบสินค้า: ' + err.message, 'error');
+        }
+      }
+
+      async handleAddToCart(event) {
+        const button = event.target;
+        const itemId = parseInt(button.dataset.itemId);
+        const row = button.closest('tr');
+        const productName = row.querySelector('.product-name').textContent;
+
+        // Disable button during add to cart
+        button.disabled = true;
+        const originalText = button.textContent;
+        button.textContent = 'กำลังเพิ่ม...';
+
+        try {
+          const response = await fetch('/api/cart/add', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'Accept': 'application/json'
+            },
+            body: JSON.stringify({
+              product_id: itemId,
+              quantity: 1
+            })
+          });
+
+          const data = await response.json();
+
+          if (!response.ok || !data.success) {
+            throw new Error(data.error || 'เกิดข้อผิดพลาดในการเพิ่มสินค้าลงตะกร้า');
+          }
+
+          this.showNotification(`เพิ่ม "${productName}" ลงตะกร้าเรียบร้อย`, 'success');
+
+        } catch (err) {
+          console.error('Error adding to cart:', err);
+          this.showNotification('เกิดข้อผิดพลาดในการเพิ่มสินค้า: ' + err.message, 'error');
+        } finally {
+          button.disabled = false;
+          button.textContent = originalText;
+        }
+      }
+
+      showNotification(message, type = 'info') {
+        const notification = document.getElementById('notification');
+        const messageElement = document.getElementById('notificationMessage');
+
+        if (!notification || !messageElement) return;
+
+        messageElement.textContent = message;
+        notification.className = `notification ${type}`;
+        notification.classList.remove('hidden');
+
+        setTimeout(() => {
+          notification.classList.add('hidden');
+        }, 3000);
+      }
+    }
+
+    // Initialize favorites page when DOM loads
+    document.addEventListener('DOMContentLoaded', () => {
+      new FavoritesPage();
+    });
+  </script>
 </body>
+
 </html>

@@ -3,684 +3,39 @@
 
 <head>
     <meta charset="UTF-8">
+    <link rel="stylesheet" href="/css/style.css">
+    <link rel="stylesheet" href="/css/notification.css">
     <title><%= title %></title>
-    <style>
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
-        }
 
-        body {
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-            line-height: 1.6;
-            color: #333;
-            background-color: #f8f9fa;
-        }
-
-        .container {
-            max-width: 1200px;
-            margin: 0 auto;
-            padding: 0 20px;
-        }
-
-        /* Navbar */
-        .navbar {
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            color: white;
-            padding: 1rem 0;
-            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
-        }
-
-        .flex-between {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-        }
-
-        .navbar-left .logo {
-            font-size: 1.5rem;
-            font-weight: bold;
-            text-decoration: none;
-            color: white;
-        }
-
-        .navbar-center .title {
-            font-size: 1.2rem;
-            font-weight: 600;
-        }
-
-        .navbar-right {
-            display: flex;
-            align-items: center;
-            gap: 15px;
-        }
-
-        .navbar-right .icon {
-            font-size: 1.2rem;
-            text-decoration: none;
-            color: white;
-            padding: 8px;
-            border-radius: 50%;
-            transition: background-color 0.3s;
-        }
-
-        .navbar-right .icon:hover {
-            background-color: rgba(255, 255, 255, 0.2);
-        }
-
-        .username {
-            font-size: 0.9rem;
-            margin-right: 10px;
-        }
-
-        .dropdown {
-            position: relative;
-        }
-
-        .dropdown button {
-            background: none;
-            border: none;
-            color: white;
-            font-size: 1.2rem;
-            cursor: pointer;
-            padding: 8px;
-            border-radius: 50%;
-            transition: background-color 0.3s;
-        }
-
-        .dropdown button:hover {
-            background-color: rgba(255, 255, 255, 0.2);
-        }
-
-        .dropdown-content {
-            position: absolute;
-            right: 0;
-            top: 100%;
-            background: white;
-            border-radius: 8px;
-            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.15);
-            min-width: 200px;
-            z-index: 1000;
-            margin-top: 10px;
-        }
-
-        .dropdown-content a {
-            display: block;
-            padding: 12px 16px;
-            text-decoration: none;
-            color: #333;
-            border-bottom: 1px solid #eee;
-            transition: background-color 0.3s;
-        }
-
-        .dropdown-content a:hover {
-            background-color: #f8f9fa;
-        }
-
-        .dropdown-content a.logout {
-            color: #dc3545;
-        }
-
-        .dropdown-content a:last-child {
-            border-bottom: none;
-        }
-
-        .btn {
-            background: rgba(255, 255, 255, 0.2);
-            color: white;
-            padding: 8px 16px;
-            border-radius: 20px;
-            text-decoration: none;
-            transition: background-color 0.3s;
-        }
-
-        .btn:hover {
-            background: rgba(255, 255, 255, 0.3);
-        }
-
-        .hidden {
-            display: none !important;
-        }
-
-        /* Banner */
-        .banner {
-            height: 400px;
-            overflow: hidden;
-            position: relative;
-        }
-
-        .slides {
-            height: 100%;
-        }
-
-        .slides img {
-            width: 100%;
-            height: 100%;
-            object-fit: cover;
-        }
-
-        /* Categories */
-        .categories {
-            display: flex;
-            gap: 10px;
-            margin: 20px 0;
-            flex-wrap: wrap;
-        }
-
-        .categories button {
-            background: linear-gradient(135deg, #ff6b6b, #ee5a52);
-            color: white;
-            border: none;
-            padding: 10px 20px;
-            border-radius: 25px;
-            cursor: pointer;
-            transition: transform 0.3s, box-shadow 0.3s;
-        }
-
-        .categories button:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 4px 15px rgba(238, 90, 82, 0.3);
-        }
-
-        /* Product Grid */
-        .product-grid {
-            display: grid;
-            grid-template-columns: repeat(4, 1fr);
-            gap: 25px;
-            margin: 30px 0;
-        }
-
-        @media (max-width: 1024px) {
-            .product-grid {
-                grid-template-columns: repeat(3, 1fr);
-            }
-        }
-
-        @media (max-width: 768px) {
-            .product-grid {
-                grid-template-columns: repeat(2, 1fr);
-                gap: 15px;
-            }
-        }
-
-        @media (max-width: 480px) {
-            .product-grid {
-                grid-template-columns: 1fr;
-            }
-        }
-
-        .product-card {
-            background: white;
-            border-radius: 15px;
-            overflow: hidden;
-            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
-            transition: transform 0.3s, box-shadow 0.3s;
-            cursor: pointer;
-            height: 300px;
-            display: flex;
-            flex-direction: column;
-        }
-
-        .product-card:hover {
-            transform: translateY(-5px);
-            box-shadow: 0 8px 25px rgba(0, 0, 0, 0.15);
-        }
-
-        .product-card img {
-            width: 100%;
-            height: 200px;
-            object-fit: cover;
-        }
-
-        .product-card .info {
-            padding: 15px;
-            flex-grow: 1;
-            display: flex;
-            flex-direction: column;
-            justify-content: space-between;
-        }
-
-        .product-card h3 {
-            font-size: 1.1rem;
-            font-weight: 600;
-            margin-bottom: 8px;
-            color: #333;
-        }
-
-        .product-card p {
-            font-size: 1.1rem;
-            font-weight: bold;
-            color: #ff6b6b;
-        }
-
-        /* Modal */
-        .modal {
-            position: fixed;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            background: rgba(0, 0, 0, 0.5);
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            z-index: 2000;
-        }
-
-        .modal-content {
-            background: white;
-            border-radius: 15px;
-            max-width: 500px;
-            width: 90%;
-            max-height: 90vh;
-            overflow-y: auto;
-            position: relative;
-            box-shadow: 0 10px 40px rgba(0, 0, 0, 0.2);
-        }
-
-        .modal-close {
-            position: absolute;
-            top: 15px;
-            right: 15px;
-            background: rgba(0, 0, 0, 0.1);
-            border: none;
-            width: 35px;
-            height: 35px;
-            border-radius: 50%;
-            cursor: pointer;
-            font-size: 18px;
-            z-index: 1;
-            transition: background-color 0.3s;
-        }
-
-        .modal-close:hover {
-            background: rgba(0, 0, 0, 0.2);
-        }
-
-        .modal img {
-            width: 100%;
-            height: 250px;
-            object-fit: cover;
-        }
-
-        .modal-info {
-            padding: 25px;
-        }
-
-        .modal h2 {
-            font-size: 1.5rem;
-            margin-bottom: 10px;
-            color: #333;
-        }
-
-        .modal p {
-            font-size: 1.3rem;
-            font-weight: bold;
-            color: #ff6b6b;
-            margin-bottom: 20px;
-        }
-
-        .modal button {
-            width: 100%;
-            padding: 12px;
-            border: none;
-            border-radius: 8px;
-            font-size: 1rem;
-            font-weight: 600;
-            cursor: pointer;
-            margin-bottom: 10px;
-            transition: transform 0.2s;
-        }
-
-        .modal button:hover {
-            transform: translateY(-1px);
-        }
-
-        .btn-cart {
-            background: linear-gradient(135deg, #4CAF50, #45a049);
-            color: white;
-        }
-
-        .btn-favorite {
-            background: linear-gradient(135deg, #e91e63, #c2185b);
-            color: white;
-        }
-
-        /* Reviews */
-        .reviews {
-            background: white;
-            padding: 50px 0;
-            margin: 50px 0;
-        }
-
-        .review {
-            background: #f8f9fa;
-            padding: 20px;
-            margin: 15px 0;
-            border-radius: 10px;
-            border-left: 4px solid #667eea;
-        }
-
-        .review p {
-            font-style: italic;
-            margin-bottom: 10px;
-        }
-
-        .review small {
-            color: #666;
-            font-weight: 600;
-        }
-
-        /* Footer */
-        .footer {
-            background: #333;
-            color: white;
-            text-align: center;
-            padding: 30px 0;
-            margin-top: 50px;
-        }
-
-        .footer p {
-            margin: 5px 0;
-        }
-
-        h2 {
-            color: #333;
-            margin: 30px 0 20px 0;
-            font-size: 2rem;
-            text-align: center;
-        }
-
-        .loading-spinner {
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            min-height: 200px;
-            font-size: 1.2rem;
-            color: #666;
-            grid-column: 1 / -1;
-            /* Span all columns */
-        }
-
-        .loading-spinner::after {
-            content: '';
-            width: 30px;
-            height: 30px;
-            margin-left: 15px;
-            border: 3px solid #f3f3f3;
-            border-top: 3px solid #667eea;
-            border-radius: 50%;
-            animation: spin 1s linear infinite;
-        }
-
-        @keyframes spin {
-            0% {
-                transform: rotate(0deg);
-            }
-
-            100% {
-                transform: rotate(360deg);
-            }
-        }
-
-        /* No Products Message */
-        .no-products {
-            grid-column: 1 / -1;
-            text-align: center;
-            padding: 50px 20px;
-            color: #666;
-            font-size: 1.2rem;
-            background: white;
-            border-radius: 15px;
-            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
-        }
-
-        /* Notification Styles */
-        .notification {
-            animation: slideIn 0.3s ease-out;
-        }
-
-        .notification.success {
-            background: linear-gradient(135deg, #4CAF50, #45a049);
-        }
-
-        .notification.error {
-            background: linear-gradient(135deg, #f44336, #d32f2f);
-        }
-
-        @keyframes slideIn {
-            from {
-                transform: translateX(100%);
-                opacity: 0;
-            }
-
-            to {
-                transform: translateX(0);
-                opacity: 1;
-            }
-        }
-
-        /* Enhanced Button Styles */
-        .btn-cart:hover {
-            background: linear-gradient(135deg, #45a049, #4CAF50);
-            box-shadow: 0 4px 15px rgba(76, 175, 80, 0.3);
-        }
-
-        .btn-favorite:hover {
-            background: linear-gradient(135deg, #c2185b, #e91e63);
-            box-shadow: 0 4px 15px rgba(233, 30, 99, 0.3);
-        }
-
-        /* Disabled Button State */
-        .btn-cart:disabled,
-        .btn-favorite:disabled {
-            opacity: 0.7;
-            cursor: not-allowed;
-            transform: none !important;
-        }
-
-        /* Mobile Responsiveness for Modal */
-        @media (max-width: 480px) {
-            .modal-content {
-                width: 95%;
-                margin: 10px;
-            }
-
-            .modal-info {
-                padding: 20px 15px;
-            }
-
-            .modal h2 {
-                font-size: 1.3rem;
-            }
-
-            .modal p {
-                font-size: 1.2rem;
-            }
-        }
-
-        /* Enhanced Navbar for Mobile */
-        @media (max-width: 768px) {
-            .navbar-right {
-                gap: 10px;
-            }
-
-            .navbar-center .title {
-                display: none;
-            }
-
-            .username {
-                display: none;
-            }
-
-            .dropdown-content {
-                min-width: 150px;
-            }
-        }
-
-        /* Category Button Active State */
-        .categories button.active {
-            background: linear-gradient(135deg, #667eea, #764ba2);
-            transform: translateY(-2px);
-            box-shadow: 0 4px 15px rgba(102, 126, 234, 0.3);
-        }
-
-        /* Smooth Transitions */
-        * {
-            transition: all 0.3s ease;
-        }
-
-        /* Enhanced Product Card Hover Effects */
-        .product-card::before {
-            content: '';
-            position: absolute;
-            top: 0;
-            left: 0;
-            right: 0;
-            bottom: 0;
-            background: linear-gradient(45deg, rgba(102, 126, 234, 0.1), rgba(255, 107, 107, 0.1));
-            opacity: 0;
-            transition: opacity 0.3s ease;
-        }
-
-        .product-card:hover::before {
-            opacity: 1;
-        }
-
-        .product-card {
-            position: relative;
-            overflow: hidden;
-        }
-
-        /* Scroll to Top Button (if needed) */
-        .scroll-to-top {
-            position: fixed;
-            bottom: 30px;
-            right: 30px;
-            background: linear-gradient(135deg, #667eea, #764ba2);
-            color: white;
-            border: none;
-            width: 50px;
-            height: 50px;
-            border-radius: 50%;
-            cursor: pointer;
-            font-size: 20px;
-            box-shadow: 0 4px 15px rgba(102, 126, 234, 0.3);
-            z-index: 1000;
-            opacity: 0;
-            transform: translateY(100px);
-            transition: all 0.3s ease;
-        }
-
-        .scroll-to-top.visible {
-            opacity: 1;
-            transform: translateY(0);
-        }
-
-        .scroll-to-top:hover {
-            transform: translateY(-5px);
-            box-shadow: 0 6px 20px rgba(102, 126, 234, 0.4);
-        }
-
-        /* Enhanced Review Cards */
-        .review {
-            transition: transform 0.3s ease, box-shadow 0.3s ease;
-        }
-
-        .review:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
-        }
-
-        /* Category Button Pulse Animation */
-        @keyframes pulse {
-            0% {
-                box-shadow: 0 0 0 0 rgba(255, 107, 107, 0.4);
-            }
-
-            70% {
-                box-shadow: 0 0 0 10px rgba(255, 107, 107, 0);
-            }
-
-            100% {
-                box-shadow: 0 0 0 0 rgba(255, 107, 107, 0);
-            }
-        }
-
-        .categories button:first-child {
-            animation: pulse 2s infinite;
-        }
-
-        /* Enhanced Focus States for Accessibility */
-        button:focus,
-        input:focus,
-        select:focus,
-        textarea:focus {
-            outline: 2px solid #667eea;
-            outline-offset: 2px;
-        }
-
-        /* Custom Scrollbar */
-        ::-webkit-scrollbar {
-            width: 8px;
-        }
-
-        ::-webkit-scrollbar-track {
-            background: #f1f1f1;
-            border-radius: 10px;
-        }
-
-        ::-webkit-scrollbar-thumb {
-            background: linear-gradient(135deg, #667eea, #764ba2);
-            border-radius: 10px;
-        }
-
-        ::-webkit-scrollbar-thumb:hover {
-            background: linear-gradient(135deg, #764ba2, #667eea);
-        }
-
-        /* Print Styles */
-        @media print {
-
-            .navbar,
-            .footer,
-            .modal,
-            .notification {
-                display: none !important;
-            }
-
-            .container {
-                max-width: none;
-                padding: 0;
-            }
-
-            .product-card {
-                break-inside: avoid;
-            }
-        }
-    </style>
 </head>
 
 <body>
 
     <!-- Navbar -->
-    <nav class="navbar">
+    <nav class="navbar fade-slide">
         <div class="container flex-between">
             <div class="navbar-left">
                 <a href="/" class="logo">หน้าแรก</a>
+                <a href="/" class="logo">เกี่ยวกับร้าน</a>
+                <a href="/" class="logo">คูปอง</a>
             </div>
             <div class="navbar-center">
                 <span class="title"><%= title %></span>
             </div>
             <div class="navbar-right">
-                <a href="/favorites" class="icon">❤️</a>
-                <a href="/cart" class="icon">🛒</a>
-
+                <a href="/favorites" class="icon" id="favorites-link">
+                    <img src="/images/icon/heart.png" width="24px">
+                    <span id="favorites-count" class="count-badge">0</span>
+                </a>
+                <a href="/cart" class="icon" id="cart-link">
+                    <img src="/images/icon/shopping-cart2.png" width="24px" />
+                    <span id="cart-count" class="count-badge">0</span>
+                </a>
                 <% if (typeof user !== "undefined" && user) { %>
-                <span class="username">สวัสดี, <%= user.name %></span>
+                <span class="username">สวัสดี, <%= user.name.substring(0, 9) %></span>
                 <div class="dropdown">
-                    <button id="btnSettings">⚙️</button>
+                    <button id="btnSettings" class="settings-btn"><img src="/images/icon/settings.png"
+                            width="24px"></button>
                     <div id="dropdownMenu" class="dropdown-content hidden">
                         <a href="/profile">แก้ไขข้อมูล</a>
                         <a href="/orders">ประวัติคำสั่งซื้อ</a>
@@ -696,16 +51,17 @@
     </nav>
 
     <!-- Banner -->
-    <section class="banner">
-        <div class="slides" id="bannerSlides">
-            <img src="/images/friedchicken.jpg">
-            <img src="/images/grilledpork.jpg" class="hidden">
-            <img src="/images/friedrice.jpg" class="hidden">
+    <section class="banner fade-slide">
+        <div class="content-banner ">
+            <h1>
+                ยินดีต้อนรับสู่ T&KFood<br>
+                ร้านอาหารที่คุณวางใจ
+            </h1>
         </div>
     </section>
 
     <!-- Categories -->
-    <section class="container">
+    <section class="container fade-slide">
         <h2>หมวดหมู่</h2>
         <div class="categories">
             <button onclick="showAllProducts()">ทั้งหมด</button>
@@ -718,11 +74,11 @@
     </section>
 
     <!-- Products -->
-    <section class="container">
-        <h2>สินค้าแนะนำ</h2>
+    <section class="container fade-slide">
+        <h2>เมนูทั้งหมด</h2>
         <div id="productList" class="product-grid">
             <% products.forEach(p => { %>
-            <div class="product-card" data-id="<%= p.product_id %>" data-name="<%= p.name %>"
+            <div class="product-card fade-slide" data-id="<%= p.product_id %>" data-name="<%= p.name %>"
                 data-price="<%= p.price %>" data-image="<%= p.image_url %>">
                 <img src="/images/<%= p.image_url %>" alt="<%= p.name %>">
                 <div class="info">
@@ -742,18 +98,25 @@
             <div class="modal-info">
                 <h2 id="modalName"></h2>
                 <p id="modalPrice"></p>
-                <form id="formCart" method="POST">
-                    <button type="submit" class="btn-cart">เพิ่มลงตะกร้า</button>
-                </form>
-                <form id="formFav" method="POST">
-                    <button type="submit" class="btn-favorite">เพิ่มเป็นสินค้าที่ชอบ</button>
-                </form>
+                <div class="modal-buttons">
+                    <button type="button" class="btn-cart" data-id="" onclick="addToCart(this)">
+                        เพิ่มลงตะกร้า
+                    </button>
+                    <button type="button" class="btn-favorite" data-id="" onclick="toggleFavorite(this)">
+                        เพิ่มเป็นสินค้าที่ชอบ
+                    </button>
+                </div>
             </div>
         </div>
     </div>
 
+    <!-- Notification -->
+    <div id="notification" class="notification hidden">
+        <span id="notificationMessage"></span>
+    </div>
+
     <!-- Reviews -->
-    <section class="reviews">
+    <section class="reviews fade-slide">
         <div class="container">
             <h2>รีวิวจากลูกค้า</h2>
             <% reviews.forEach(r => { %>
@@ -766,100 +129,213 @@
     </section>
 
     <!-- Footer -->
-    <footer class="footer">
+    <footer class="footer fade-slide">
         <div class="container">
-            <p>🍲 T&KFood</p>
-            <p>📍 ที่อยู่: 123 ถนนหลัก กรุงเทพฯ</p>
-            <p>📞 เบอร์: 099-123-4567</p>
-            <p>🕘 9:00-19:00น. หยุดวันอาทิตย์</p>
-            <p>📧 Gmail: restaurant@example.com</p>
-            <p>💬 Line: @restaurant</p>
+            <div class="footer-left">
+                <p class="title-footer">🍲 T&KFood</p>
+                <p>🏢 ที่อยู่: 123 ถนนหลัก กรุงเทพฯ</p>
+                <p>📞 เบอร์: 099-123-4567</p>
+                <p>🕘 9:00-19:00น. หยุดวันอาทิตย์</p>
+            </div>
+            <div class="footer-center">
+                <p>📧 Gmail: restaurant@example.com</p>
+                <p>💬 Line: @restaurant</p>
+            </div>
+            <div class="footer-right">
+                <p>ร้านอาหารคุณภาพ ส่งตรงถึงบ้าน พร้อมบริการที่เป็นมิตรและรวดเร็ว
+                    มาร่วมเป็นส่วนหนึ่งของครอบครัวเราได้เลย!</p>
+            </div>
         </div>
     </footer>
 
     <script>
-        // Dropdown Settings
-        const btnSettings = document.getElementById("btnSettings");
-        const dropdownMenu = document.getElementById("dropdownMenu");
+        let currentProductId = null;
+        const isLoggedIn = <%= user ? 'true' : 'false' %>;
+    </script>
+    <script src="/js/animation.js"></script>
+    <script src="/js/main.js"></script>
+    <script>
 
-        if (btnSettings && dropdownMenu) {
-            btnSettings.addEventListener("click", (e) => {
-                e.stopPropagation();
-                dropdownMenu.classList.toggle("hidden");
-            });
+        document.addEventListener('DOMContentLoaded', function () {
+            if (isLoggedIn) {
+                updateCartCount();
+                updateFavoriteCount();
+            }
+            setupEventListeners ?.();
+        });
 
-            // Close dropdown when clicking outside
-            document.addEventListener("click", (e) => {
-                if (!dropdownMenu.contains(e.target) && !btnSettings.contains(e.target)) {
-                    dropdownMenu.classList.add("hidden");
+        function setupEventListeners() {
+            const btnSettings = document.getElementById("btnSettings");
+            const dropdownMenu = document.getElementById("dropdownMenu");
+
+            if (btnSettings && dropdownMenu) {
+                btnSettings.addEventListener("click", (e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    dropdownMenu.classList.toggle("hidden");
+                });
+
+                document.addEventListener("click", (e) => {
+                    if (!dropdownMenu.contains(e.target) && !btnSettings.contains(e.target)) {
+                        dropdownMenu.classList.add("hidden");
+                    }
+                });
+            }
+
+            // Setup product list click handler
+            setupProductClickHandler();
+
+            // Modal close events
+            const productModal = document.getElementById("productModal");
+            if (productModal) {
+                productModal.addEventListener("click", (e) => {
+                    if (e.target === productModal) {
+                        closeModal();
+                    }
+                });
+            }
+
+            // Escape key to close modal
+            document.addEventListener("keydown", (e) => {
+                if (e.key === "Escape" && !productModal.classList.contains("hidden")) {
+                    closeModal();
                 }
             });
         }
 
-        // Banner slideshow
-        const slides = document.querySelectorAll("#bannerSlides img");
-        let currentSlide = 0;
+        // Setup product click handler - separate function for reusability
+        function setupProductClickHandler() {
+            const productList = document.getElementById("productList");
+            if (!productList) {
+                console.error('Product list element not found');
+                return;
+            }
 
-        function nextSlide() {
-            slides[currentSlide].classList.add("hidden");
-            currentSlide = (currentSlide + 1) % slides.length;
-            slides[currentSlide].classList.remove("hidden");
-        }
+            // Remove existing event listeners to prevent duplicates
+            const newProductList = productList.cloneNode(true);
+            productList.parentNode.replaceChild(newProductList, productList);
 
-        if (slides.length > 1) {
-            setInterval(nextSlide, 4000);
-        }
+            // Add click event listener to the new element
+            newProductList.addEventListener("click", (e) => {
+                e.preventDefault();
+                console.log('Product list clicked', e.target); // Debug log
 
-        // Product Modal
-        const productList = document.getElementById("productList");
-        const productModal = document.getElementById("productModal");
-        const modalImage = document.getElementById("modalImage");
-        const modalName = document.getElementById("modalName");
-        const modalPrice = document.getElementById("modalPrice");
-        const formCart = document.getElementById("formCart");
-        const formFav = document.getElementById("formFav");
-
-        if (productList) {
-            productList.addEventListener("click", (e) => {
                 const card = e.target.closest(".product-card");
-                if (!card) return;
+                if (!card) {
+                    console.log('No product card found');
+                    return;
+                }
+
+                console.log('Product card found:', card); // Debug log
 
                 const id = card.dataset.id;
                 const name = card.dataset.name;
                 const price = card.dataset.price;
                 const image = card.dataset.image;
 
-                modalImage.src = "/images/" + image;
-                modalImage.alt = name;
-                modalName.textContent = name;
-                modalPrice.textContent = price + " บาท";
+                console.log('Product data:', {
+                    id,
+                    name,
+                    price,
+                    image
+                }); // Debug log
 
-                formCart.action = "/cart/add/" + id;
-                formFav.action = "/favorites/add/" + id;
+                if (!id || !name || !price || !image) {
+                    console.error('Missing product data:', {
+                        id,
+                        name,
+                        price,
+                        image
+                    });
+                    return;
+                }
 
-                productModal.classList.remove("hidden");
-                document.body.style.overflow = "hidden"; // Prevent background scrolling
+                openProductModal(id, name, price, image);
             });
         }
 
-        function closeModal() {
-            productModal.classList.add("hidden");
-            document.body.style.overflow = ""; // Restore scrolling
+        // Open product modal
+        function openProductModal(id, name, price, image) {
+            console.log('Opening modal with:', {
+                id,
+                name,
+                price,
+                image
+            }); // Debug log
+
+            currentProductId = id;
+
+            const modalImage = document.getElementById("modalImage");
+            const modalName = document.getElementById("modalName");
+            const modalPrice = document.getElementById("modalPrice");
+            const productModal = document.getElementById("productModal");
+
+            if (!modalImage || !modalName || !modalPrice || !productModal) {
+                console.error('Modal elements not found:', {
+                    modalImage: !!modalImage,
+                    modalName: !!modalName,
+                    modalPrice: !!modalPrice,
+                    productModal: !!productModal
+                });
+                return;
+            }
+
+            modalImage.src = "/images/" + image;
+            modalImage.alt = name;
+            modalName.textContent = name;
+            modalPrice.textContent = price + " บาท";
+
+            // Update button data-id attributes
+            const cartBtn = document.querySelector('.btn-cart');
+            const favoriteBtn = document.querySelector('.btn-favorite');
+            if (cartBtn) cartBtn.dataset.id = id;
+            if (favoriteBtn) favoriteBtn.dataset.id = id;
+
+            console.log('Modal elements updated, showing modal'); // Debug log
+
+            productModal.classList.remove("hidden");
+            document.body.style.overflow = "hidden";
+
+            console.log('Modal should be visible now'); // Debug log
         }
 
-        // Close modal when clicking outside
-        productModal.addEventListener("click", (e) => {
-            if (e.target === productModal) {
-                closeModal();
-            }
-        });
+        // Close modal
+        function closeModal() {
+            const productModal = document.getElementById("productModal");
+            productModal.classList.add("hidden");
+            document.body.style.overflow = "";
+            currentProductId = null;
+        }
 
-        // Close modal with Escape key
-        document.addEventListener("keydown", (e) => {
-            if (e.key === "Escape" && !productModal.classList.contains("hidden")) {
-                closeModal();
+        // Update cart count
+        async function updateCartCount() {
+            try {
+                const response = await fetch('/api/cart/count');
+                const data = await response.json();
+                const countElement = document.getElementById('cart-count');
+                if (countElement) {
+                    countElement.textContent = data.count || 0;
+                    countElement.style.display = (data.count > 0) ? 'inline-block' : 'none';
+                }
+            } catch (error) {
+                console.error('Error updating cart count:', error);
             }
-        });
+        }
+
+        // Update favorites count
+        async function updateFavoritesCount() {
+            try {
+                const response = await fetch('/api/favorites/count');
+                const data = await response.json();
+                const countElement = document.getElementById('favorites-count');
+                if (countElement) {
+                    countElement.textContent = data.count || 0;
+                    countElement.style.display = (data.count > 0) ? 'inline-block' : 'none';
+                }
+            } catch (error) {
+                console.error('Error updating favorites count:', error);
+            }
+        }
 
         // Category filter
         function filterCategory(catId) {
@@ -872,6 +348,7 @@
                 })
                 .catch(err => {
                     console.error('Error fetching products:', err);
+                    showNotification('เกิดข้อผิดพลาดในการโหลดสินค้า', 'error');
                 });
         }
 
@@ -885,16 +362,22 @@
                 })
                 .catch(err => {
                     console.error('Error fetching products:', err);
+                    showNotification('เกิดข้อผิดพลาดในการโหลดสินค้า', 'error');
                 });
         }
 
         function updateProductList(products) {
             const list = document.getElementById("productList");
+            if (!list) {
+                console.error('Product list element not found');
+                return;
+            }
+
             list.innerHTML = "";
 
             products.forEach(p => {
                 const productCard = document.createElement('div');
-                productCard.className = 'product-card';
+                productCard.className = 'product-card fade-slide';
                 productCard.dataset.id = p.product_id;
                 productCard.dataset.name = p.name;
                 productCard.dataset.price = p.price;
@@ -910,80 +393,55 @@
 
                 list.appendChild(productCard);
             });
+
+            // Re-setup click handlers for new products
+            setupProductClickHandler();
         }
 
-        // Form submissions with better error handling
-        if (formCart) {
-            formCart.addEventListener('submit', (e) => {
-                e.preventDefault();
+        // Animation functions
+        function isInViewport(element) {
+            const rect = element.getBoundingClientRect();
+            return (
+                rect.top <= (window.innerHeight || document.documentElement.clientHeight) &&
+                rect.bottom >= 0
+            );
+        }
 
-                // Show loading state
-                const button = formCart.querySelector('button');
-                const originalText = button.textContent;
-                button.textContent = 'กำลังเพิ่ม...';
-                button.disabled = true;
-
-                // Submit form
-                fetch(formCart.action, {
-                        method: 'POST',
-                        headers: {
-                            'Content-Type': 'application/x-www-form-urlencoded',
-                        }
-                    })
-                    .then(response => {
-                        if (response.ok) {
-                            alert('เพิ่มสินค้าลงตะกร้าเรียบร้อย!');
-                            closeModal();
-                        } else {
-                            alert('เกิดข้อผิดพลาด กรุณาลองใหม่');
-                        }
-                    })
-                    .catch(error => {
-                        console.error('Error:', error);
-                        alert('เกิดข้อผิดพลาดในการเชื่อมต่อ');
-                    })
-                    .finally(() => {
-                        button.textContent = originalText;
-                        button.disabled = false;
-                    });
+        function animateOnScroll() {
+            const elements = document.querySelectorAll('.fade-slide');
+            elements.forEach(el => {
+                if (isInViewport(el)) {
+                    el.classList.add('in-view');
+                }
             });
         }
 
-        if (formFav) {
-            formFav.addEventListener('submit', (e) => {
-                e.preventDefault();
-
-                // Show loading state
-                const button = formFav.querySelector('button');
-                const originalText = button.textContent;
-                button.textContent = 'กำลังเพิ่ม...';
-                button.disabled = true;
-
-                // Submit form
-                fetch(formFav.action, {
-                        method: 'POST',
-                        headers: {
-                            'Content-Type': 'application/x-www-form-urlencoded',
-                        }
-                    })
-                    .then(response => {
-                        if (response.ok) {
-                            alert('เพิ่มเป็นสินค้าที่ชอบเรียบร้อย!');
-                            closeModal();
-                        } else {
-                            alert('เกิดข้อผิดพลาด กรุณาลองใหม่');
-                        }
-                    })
-                    .catch(error => {
-                        console.error('Error:', error);
-                        alert('เกิดข้อผิดพลาดในการเชื่อมต่อ');
-                    })
-                    .finally(() => {
-                        button.textContent = originalText;
-                        button.disabled = false;
-                    });
+        window.addEventListener('scroll', animateOnScroll);
+        window.addEventListener('load', () => {
+            animateOnScroll();
+            document.querySelectorAll('.fade-slide').forEach(el => {
+                el.classList.add('in-view');
             });
-        }
+        });
+
+        const faders = document.querySelectorAll('#productList .fade-slide');
+
+        const observer = new IntersectionObserver(entries => {
+            entries.forEach(entry => {
+                if (entry.isIntersecting) {
+                    faders.forEach((el, index) => {
+                        setTimeout(() => {
+                            el.classList.add('show');
+                        }, index * 150);
+                    });
+                    observer.unobserve(entry.target);
+                }
+            });
+        }, {
+            threshold: 0.2
+        });
+
+        observer.observe(document.querySelector('#productList'));
     </script>
 </body>
 

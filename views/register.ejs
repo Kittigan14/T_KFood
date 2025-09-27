@@ -1,22 +1,57 @@
 <!DOCTYPE html>
 <html lang="th">
+
 <head>
   <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>สมัครสมาชิก</title>
-  <link rel="stylesheet" href="/css/style.css">
+  <link rel="stylesheet" href="/css/base.css">
+  <link rel="stylesheet" href="/css/auth.css">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
 </head>
+
 <body>
-  <div class="container form-box">
+  <div class="form-box">
     <h2>สมัครสมาชิก</h2>
     <form action="/api/auth/register" method="POST" class="form">
       <input type="text" name="name" placeholder="ชื่อ-นามสกุล" required>
       <input type="email" name="email" placeholder="อีเมล" required>
-      <input type="password" name="password" placeholder="รหัสผ่าน" required>
-      <input type="number" name="phone" placeholder="เบอร์โทร" required>
-      <input type="text" name="address" placeholder="ที่อยู่" required>
+      <div class="password-wrapper">
+        <input type="password" name="password" id="registerPassword" placeholder="รหัสผ่าน" required>
+        <span class="toggle-password" data-target="registerPassword">
+          <img src="/images/icon/eye.png" alt="toggle">
+        </span>
+      </div>
+
+
+      <input type="tel" name="phone" placeholder="เบอร์โทร" required>
+      <div class="address">
+        <input type="text" name="address" placeholder="ที่อยู่" required>
+      </div>
       <button type="submit" class="btn-submit">สมัครสมาชิก</button>
     </form>
     <p>มีบัญชีแล้ว? <a href="/login">เข้าสู่ระบบ</a></p>
   </div>
+
+  <script>
+    document.querySelectorAll(".toggle-password").forEach(btn => {
+      btn.addEventListener("click", function () {
+        const targetId = this.getAttribute("data-target");
+        const input = document.getElementById(targetId);
+        const img = this.querySelector("img");
+
+        if (input.type === "password") {
+          input.type = "text";
+          img.src = "/images/icon/eye-crossed.png";
+        } else {
+          input.type = "password";
+          img.src = "/images/icon/eye.png";
+        }
+      });
+    });
+  </script>
+
+
 </body>
+
 </html>

@@ -1,0 +1,248 @@
+/* Auth pages specific styles */
+body {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  min-height: 100vh;
+  background: var(--color-background);
+  position: relative;
+  overflow: hidden;
+}
+
+/* Subtle background pattern */
+body::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background-image: radial-gradient(circle at 25% 25%, var(--color-accent) 2px, transparent 2px);
+  background-size: 50px 50px;
+  opacity: 0.3;
+  pointer-events: none;
+}
+
+/* Form container */
+.form-box {
+  background: var(--color-background);
+  border-radius: 20px;
+  padding: 40px;
+  width: 100%;
+  max-width: 450px;
+  box-shadow: 0 20px 40px var(--shadow-soft);
+  position: relative;
+  border: 1px solid var(--color-accent);
+  animation: slideUp 0.6s ease-out;
+}
+
+@keyframes slideUp {
+  from {
+    opacity: 0;
+    transform: translateY(30px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* Clean border effect */
+.form-box::before {
+  content: '';
+  position: absolute;
+  top: -2px;
+  left: -2px;
+  right: -2px;
+  bottom: -2px;
+  background: var(--color-primary);
+  border-radius: 22px;
+  z-index: -1;
+  opacity: 0;
+  transition: opacity var(--transition-duration) ease;
+}
+
+.form-box:hover::before {
+  opacity: 0.05;
+}
+
+/* Heading styles */
+.form-box h2 {
+  font-size: 2.2rem;
+  font-weight: 700;
+  margin-bottom: 30px;
+  text-align: center;
+  color: var(--color-primary);
+}
+
+/* Form styling */
+.form {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+/* Input fields styling */
+form input[type="text"],
+form input[type="email"],
+form input[type="tel"],
+form input[type="password"] {
+  width: 100%;
+  padding: 16px 20px;
+  border-radius: var(--border-radius);
+  border: 2px solid var(--color-accent);
+  background: var(--color-background);
+  font-size: 1rem;
+  color: var(--color-primary);
+  outline: none;
+  transition: all var(--transition-duration) ease;
+  font-family: inherit;
+}
+
+form input[type="text"]:focus,
+form input[type="email"]:focus,
+form input[type="tel"]:focus,
+form input[type="password"]:focus {
+  border-color: var(--color-primary);
+  box-shadow: 0 0 0 3px rgba(26, 26, 26, 0.1);
+  transform: translateY(-2px);
+}
+
+form input::placeholder {
+  color: var(--color-primary);
+  opacity: 0.5;
+  font-weight: 400;
+}
+
+/* Address container for additional styling if needed */
+.address {
+  position: relative;
+}
+
+/* Submit button specific styling for forms */
+form .btn-submit {
+  width: 100%;
+  padding: 16px 20px;
+  margin-top: 10px;
+  font-size: 1.1rem;
+  font-weight: 600;
+  border-radius: var(--border-radius);
+}
+
+/* Link styles inside the form */
+form p {
+  margin-top: 25px;
+  font-size: 0.95rem;
+  color: var(--color-primary);
+  opacity: 0.7;
+  text-align: center;
+}
+
+form p a {
+  color: var(--color-primary);
+  font-weight: 600;
+  text-decoration: none;
+  position: relative;
+}
+
+form p a::after {
+  content: '';
+  position: absolute;
+  width: 0;
+  height: 2px;
+  bottom: -2px;
+  left: 0;
+  background: var(--color-primary);
+  transition: width var(--transition-duration) ease;
+}
+
+form p a:hover::after {
+  width: 100%;
+}
+
+form p a:hover {
+  opacity: 0.8;
+}
+
+/* Input focus effects */
+form input:focus + label,
+form input:valid + label {
+  transform: translateY(-12px) scale(0.8);
+  color: #4f46e5;
+}
+
+/* Loading state for submit button */
+.btn-submit.loading {
+  position: relative;
+  color: transparent;
+}
+
+.btn-submit.loading::after {
+  content: '';
+  position: absolute;
+  width: 20px;
+  height: 20px;
+  top: 50%;
+  left: 50%;
+  margin-left: -10px;
+  margin-top: -10px;
+  border: 2px solid var(--color-background);
+  border-radius: 50%;
+  border-top-color: transparent;
+  animation: spin 1s linear infinite;
+}
+
+.password-wrapper {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+
+.password-wrapper input {
+  width: 100%;
+  padding-right: 40px;
+}
+
+.toggle-password {
+  position: absolute;
+  right: 10px;
+  cursor: pointer;
+  user-select: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.toggle-password img {
+  width: 20px;
+  height: 20px;
+}
+
+
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
+/* Responsive adjustments */
+@media(max-width: 600px) {
+  .form-box {
+    padding: 30px 25px;
+    margin: 20px;
+  }
+  
+  .form-box h2 {
+    font-size: 1.8rem;
+  }
+  
+  form input[type="text"],
+  form input[type="email"],
+  form input[type="tel"],
+  form input[type="password"] {
+    padding: 14px 16px;
+  }
+  
+  form .btn-submit {
+    padding: 14px 16px;
+  }
+}
