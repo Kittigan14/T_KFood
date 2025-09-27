@@ -65,7 +65,6 @@ app.use((req, res, next) => {
     });
 });
 
-
 // JWT Middleware
 const authenticateToken = (req, res, next) => {
     const authHeader = req.headers['authorization'];
@@ -526,7 +525,7 @@ app.post('/api/cart/add', (req, res) => {
     jwt.verify(token, JWT_SECRET, (err, user) => {
         if (err) return res.status(403).json({ error: 'Invalid token' });
 
-        console.log("Decoded user from JWT:", user);
+        // console.log("Decoded user from JWT:", user);
         const { product_id, quantity = 1 } = req.body;
         const customer_id = user.customer_id;
 
@@ -1152,11 +1151,6 @@ function calculateDiscount(promotion, order_amount, cart_items) {
         description: promotion.description
     };
 }
-
-// Root route
-// app.get('/', (req, res) => {
-//     res.sendFile(path.join(__dirname, 'views', 'index.html'));
-// });
 
 // Health check
 app.get('/api/health', (req, res) => {
