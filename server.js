@@ -812,6 +812,115 @@ app.get('/api/favorites/count', (req, res) => {
     });
 });
 
+app.get("/coupons", (req, res) => {
+  res.render("coupons"); 
+});
+
+app.get('/api/coupons', (req, res) => {
+  const token = req.cookies.token;
+  if (!token) return res.status(401).json({ error: 'กรุณาเข้าสู่ระบบก่อน' });
+
+  jwt.verify(token, JWT_SECRET, (err, user) => {
+    if (err) return res.status(403).json({ error: 'Invalid token' });
+
+    const customer_id = user.customer_id;
+
+    const query = `
+      SELECT cc.coupon_id, cc.status, cc.expires_at, p.promo_code, p.name, p.description
+      FROM Customer_Coupons cc
+      JOIN Promotions p ON cc.promotion_id = p.promotion_id
+      WHERE cc.customer_id = ? AND cc.status = 'available'
+      AND (cc.expires_at IS NULL OR cc.expires_at >= datetime('now'))
+    `;
+
+    db.all(query, [customer_id], (err, rows) => {
+      if (err) return res.status(500).json({ error: err.message });
+
+      res.json({
+        success: true,
+        coupons: rows
+      });
+    });
+  });
+});
+
+// Claim coupon (insert into Customer_Coupons)
+app.post('/api/coupons/claim', (req, res) => {
+  const token = req.cookies.token;
+  if (!token) return res.status(401).json({ success: false, message: 'กรุณาเข้าสู่ระบบก่อน' });
+
+  jwt.verify(token, JWT_SECRET, (err, user) => {
+    if (err) return res.status(403).json({ success: false, message: 'Token ไม่ถูกต้อง' });
+
+    const { promotion_id } = req.body;
+    const customer_id = user.customer_id;
+
+    if (!promotion_id) {
+      return res.status(400).json({ success: false, message: 'promotion_id ไม่ถูกต้อง' });
+    }
+
+    const checkQuery = `SELECT * FROM Customer_Coupons WHERE promotion_id = ? AND customer_id = ?`;
+    db.get(checkQuery, [promotion_id, customer_id], (err, row) => {
+      if (err) return res.status(500).json({ success: false, message: err.message });
+
+      if (row) {
+        return res.json({ success: false, message: 'คุณรับคูปองนี้ไปแล้ว' });
+      }
+
+      const promoQuery = `SELECT * FROM Promotions WHERE promotion_id = ?`;
+      db.get(promoQuery, [promotion_id], (err, promotion) => {
+        if (err || !promotion) {
+          return res.status(404).json({ success: false, message: 'ไม่พบโปรโมชั่น' });
+        }
+
+        const insertQuery = `
+          INSERT INTO Customer_Coupons (customer_id, promotion_id, status, expires_at) 
+          VALUES (?, ?, 'available', ?)
+        `;
+        db.run(insertQuery, [customer_id, promotion_id, promotion.end_date], function (err) {
+          if (err) return res.status(500).json({ success: false, message: err.message });
+
+          res.json({ success: true, message: 'รับคูปองสำเร็จแล้ว!' });
+        });
+      });
+    });
+  });
+});
+
+app.get('/api/coupons/available', (req, res) => {
+  const token = req.cookies.token;
+  if (!token) return res.status(401).json({ error: 'กรุณาเข้าสู่ระบบก่อน' });
+
+  jwt.verify(token, JWT_SECRET, (err, user) => {
+    if (err) return res.status(403).json({ error: 'Invalid token' });
+
+    const customer_id = user.customer_id;
+
+    const query = `
+      SELECT cc.coupon_id, cc.status, cc.expires_at, 
+             p.promotion_id, p.promo_code, p.name, p.description, 
+             p.type, p.discount_value, p.min_order_amount, p.max_discount_amount
+      FROM Customer_Coupons cc
+      JOIN Promotions p ON cc.promotion_id = p.promotion_id
+      WHERE cc.customer_id = ? 
+        AND cc.status = 'available'
+        AND p.status = 'active'
+        AND p.start_date <= datetime('now') 
+        AND p.end_date >= datetime('now')
+        AND (cc.expires_at IS NULL OR cc.expires_at >= datetime('now'))
+    `;
+
+    db.all(query, [customer_id], (err, rows) => {
+      if (err) return res.status(500).json({ error: err.message });
+
+      res.json({
+        success: true,
+        coupons: rows
+      });
+    });
+  });
+});
+
 // Get all active promotions
 app.get('/api/promotions/active', (req, res) => {
     const query = `
@@ -837,89 +946,172 @@ app.get('/api/promotions/active', (req, res) => {
 
 // Validate promo code
 app.post('/api/promotions/validate', (req, res) => {
-    const {
-        promo_code,
-        customer_id,
-        order_amount,
-        cart_items
-    } = req.body;
+    const token = req.cookies.token;
+    if (!token) return res.status(401).json({ error: 'กรุณาเข้าสู่ระบบก่อน' });
 
-    if (!promo_code || !customer_id || !order_amount) {
-        return res.status(400).json({
-            error: 'ข้อมูลไม่ครบถ้วน'
-        });
-    }
+    jwt.verify(token, JWT_SECRET, (err, user) => {
+        if (err) return res.status(403).json({ error: 'Invalid token' });
 
-    const query = `
-        SELECT * FROM Promotions 
-        WHERE promo_code = ? 
-        AND status = 'active' 
-        AND start_date <= datetime('now') 
-        AND end_date >= datetime('now')
-    `;
+        const {
+            promo_code,
+            order_amount,
+            cart_items
+        } = req.body;
+        const customer_id = user.customer_id;
 
-    db.get(query, [promo_code], (err, promotion) => {
-        if (err) {
-            return res.status(500).json({
-                error: err.message
-            });
-        }
-
-        if (!promotion) {
+        if (!promo_code || !order_amount) {
             return res.status(400).json({
-                valid: false,
-                message: 'รหัสโปรโมชั่นไม่ถูกต้องหรือหมดอายุแล้ว'
+                error: 'ข้อมูลไม่ครบถ้วน'
             });
         }
 
-        if (order_amount < promotion.min_order_amount) {
-            return res.status(400).json({
-                valid: false,
-                message: `ยอดสั่งซื้อขั้นต่ำ ${promotion.min_order_amount} บาท`
-            });
-        }
+        // Check if customer has this coupon available
+        const couponQuery = `
+            SELECT cc.coupon_id, cc.status, p.*
+            FROM Customer_Coupons cc
+            JOIN Promotions p ON cc.promotion_id = p.promotion_id
+            WHERE cc.customer_id = ? 
+              AND p.promo_code = ?
+              AND cc.status = 'available'
+              AND p.status = 'active' 
+              AND p.start_date <= datetime('now') 
+              AND p.end_date >= datetime('now')
+              AND (cc.expires_at IS NULL OR cc.expires_at >= datetime('now'))
+        `;
 
-        if (promotion.usage_per_customer) {
-            const usageQuery = `
-                SELECT COUNT(*) as usage_count 
-                FROM Promotion_Usage 
-                WHERE promotion_id = ? AND customer_id = ?
-            `;
+        db.get(couponQuery, [customer_id, promo_code], (err, coupon) => {
+            if (err) {
+                return res.status(500).json({
+                    error: err.message
+                });
+            }
 
-            db.get(usageQuery, [promotion.promotion_id, customer_id], (err, row) => {
-                if (err) {
-                    return res.status(500).json({
-                        error: err.message
+            if (!coupon) {
+                return res.status(400).json({
+                    valid: false,
+                    message: 'รหัสโปรโมชั่นไม่ถูกต้องหรือหมดอายุแล้ว หรือคุณยังไม่ได้รับคูปองนี้'
+                });
+            }
+
+            if (order_amount < coupon.min_order_amount) {
+                return res.status(400).json({
+                    valid: false,
+                    message: `ยอดสั่งซื้อขั้นต่ำ ${coupon.min_order_amount} บาท`
+                });
+            }
+
+            // Check usage limit per customer if applicable
+            if (coupon.usage_per_customer) {
+                const usageQuery = `
+                    SELECT COUNT(*) as usage_count 
+                    FROM Promotion_Usage 
+                    WHERE promotion_id = ? AND customer_id = ?
+                `;
+
+                db.get(usageQuery, [coupon.promotion_id, customer_id], (err, row) => {
+                    if (err) {
+                        return res.status(500).json({
+                            error: err.message
+                        });
+                    }
+
+                    if (row.usage_count >= coupon.usage_per_customer) {
+                        return res.status(400).json({
+                            valid: false,
+                            message: 'คุณใช้โปรโมชั่นนี้ครบจำนวนที่กำหนดแล้ว'
+                        });
+                    }
+
+                    const discount = calculateDiscount(coupon, order_amount, cart_items || []);
+
+                    res.json({
+                        valid: true,
+                        coupon: coupon,
+                        discount: discount,
+                        message: `ใช้ส่วนลดได้ ${discount.amount} บาท`
                     });
-                }
-
-                if (row.usage_count >= promotion.usage_per_customer) {
-                    return res.status(400).json({
-                        valid: false,
-                        message: 'คุณใช้โปรโมชั่นนี้ครบจำนวนที่กำหนดแล้ว'
-                    });
-                }
-
-                const discount = calculateDiscount(promotion, order_amount, cart_items || []);
+                });
+            } else {
+                const discount = calculateDiscount(coupon, order_amount, cart_items || []);
 
                 res.json({
                     valid: true,
-                    promotion: promotion,
+                    coupon: coupon,
                     discount: discount,
                     message: `ใช้ส่วนลดได้ ${discount.amount} บาท`
                 });
-            });
-        } else {
-            const discount = calculateDiscount(promotion, order_amount, cart_items || []);
-
-            res.json({
-                valid: true,
-                promotion: promotion,
-                discount: discount,
-                message: `ใช้ส่วนลดได้ ${discount.amount} บาท`
-            });
-        }
+            }
+        });
     });
+});
+
+app.post('/api/coupons/use', (req, res) => {
+    const token = req.cookies.token;
+    if (!token) return res.status(401).json({ error: 'กรุณาเข้าสู่ระบบก่อน' });
+
+    jwt.verify(token, JWT_SECRET, (err, user) => {
+        if (err) return res.status(403).json({ error: 'Invalid token' });
+
+        const { promo_code, order_amount } = req.body;
+        const customer_id = user.customer_id;
+
+        if (!promo_code) {
+            return res.status(400).json({ error: 'กรุณาระบุรหัสคูปอง' });
+        }
+
+        // Get coupon details first
+        const getCouponQuery = `
+            SELECT cc.coupon_id, cc.status, p.*
+            FROM Customer_Coupons cc
+            JOIN Promotions p ON cc.promotion_id = p.promotion_id
+            WHERE cc.customer_id = ? 
+              AND p.promo_code = ?
+              AND cc.status = 'available'
+        `;
+
+        db.get(getCouponQuery, [customer_id, promo_code], (err, coupon) => {
+            if (err) return res.status(500).json({ error: err.message });
+            if (!coupon) return res.status(404).json({ error: 'ไม่พบคูปองที่ใช้ได้' });
+
+            // Mark coupon as used
+            const updateQuery = `
+                UPDATE Customer_Coupons 
+                SET status = 'used' 
+                WHERE coupon_id = ? AND customer_id = ?
+            `;
+
+            db.run(updateQuery, [coupon.coupon_id, customer_id], function(err) {
+                if (err) return res.status(500).json({ error: err.message });
+
+                const discount = calculateDiscount(coupon, order_amount, []);
+
+                res.json({
+                    success: true,
+                    message: 'ใช้คูปองเรียบร้อยแล้ว',
+                    discount: discount
+                });
+            });
+        });
+    });
+});
+
+// Temporary endpoint to insert test promotions
+app.get('/api/test/insert-promotions', (req, res) => {
+  const testPromotions = [
+    ['ส่วนลด 20%', 'ลด 20% สำหรับการสั่งซื้อครั้งแรก', 'percentage', 20, null, null, 200, 100, 100, 1, 'NEW20'],
+    ['ลด 50 บาท', 'ลดทันที 50 บาท เมื่อสั่งอาหารครบ 300 บาท', 'fixed_amount', 50, null, null, 300, null, null, null, 'SAVE50']
+  ];
+
+  const stmt = db.prepare(`
+    INSERT OR REPLACE INTO Promotions 
+    (name, description, type, discount_value, buy_quantity, get_quantity, min_order_amount, max_discount_amount, usage_limit, usage_per_customer, start_date, end_date, status, promo_code) 
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, datetime('now'), datetime('now', '+1 year'), 'active', ?)
+  `);
+
+  testPromotions.forEach(promo => stmt.run(promo));
+  stmt.finalize();
+
+  res.json({ success: true, message: 'Test promotions inserted' });
 });
 
 // Calculate discount function
@@ -962,9 +1154,9 @@ function calculateDiscount(promotion, order_amount, cart_items) {
 }
 
 // Root route
-app.get('/', (req, res) => {
-    res.sendFile(path.join(__dirname, 'views', 'index.html'));
-});
+// app.get('/', (req, res) => {
+//     res.sendFile(path.join(__dirname, 'views', 'index.html'));
+// });
 
 // Health check
 app.get('/api/health', (req, res) => {

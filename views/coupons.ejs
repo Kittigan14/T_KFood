@@ -1,0 +1,288 @@
+<!DOCTYPE html>
+<html lang="th">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>คูปองที่สามารถรับได้ - T&KFood</title>
+  <link rel="stylesheet" href="/css/base.css">
+  <link rel="stylesheet" href="/css/coupons.css">
+  <link href="https://fonts.googleapis.com/css2?family=Kanit:wght@400;500;600;700&display=swap" rel="stylesheet">
+</head>
+
+<body>
+  <div class="coupon-container">
+    <h2>🎟️ คูปองส่วนลดพิเศษ</h2>
+    <div id="coupon-list">
+      <div class="loading-container">
+        <div class="loading-spinner"></div>
+        <p>กำลังโหลดคูปองที่สามารถรับได้...</p>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    class CouponManager {
+      constructor() {
+        this.container = document.getElementById('coupon-list');
+        this.loadCoupons();
+      }
+
+      async loadCoupons() {
+        try {
+          console.log('Loading coupons...');
+          
+          const response = await fetch('/api/promotions/active', {
+            headers: {
+              'Accept': 'application/json'
+            }
+          });
+
+          console.log('Response status:', response.status);
+          
+          if (!response.ok) {
+            throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+          }
+
+          const data = await response.json();
+          console.log('Received data:', data);
+
+          if (!data.success) {
+            throw new Error(data.error || 'Failed to load promotions');
+          }
+
+          if (!data.promotions || data.promotions.length === 0) {
+            this.showEmpty();
+            return;
+          }
+
+          this.renderCoupons(data.promotions);
+
+        } catch (error) {
+          console.error('Error loading coupons:', error);
+          this.showError(error.message);
+        }
+      }
+
+      renderCoupons(promotions) {
+        const couponCards = promotions.map(promotion => {
+          const details = this.getPromotionDetails(promotion);
+          
+          return `
+            <div class="coupon-card" data-type="${promotion.type}">
+              <div class="coupon-header">
+                <h3 class="coupon-title">${promotion.name}</h3>
+                <span class="coupon-code">${promotion.promo_code}</span>
+              </div>
+              
+              <p class="coupon-description">${promotion.description}</p>
+              
+              <div class="coupon-details">
+                ${details.map(detail => `
+                  <div class="coupon-detail-item">
+                    <span>${detail.label}</span>
+                    <strong>${detail.value}</strong>
+                  </div>
+                `).join('')}
+              </div>
+              
+              <button class="claim-btn" onclick="claimCoupon(${promotion.promotion_id}, '${promotion.name}', '${promotion.promo_code}')">
+                รับคูปองนี้
+              </button>
+            </div>
+          `;
+        }).join('');
+
+        this.container.innerHTML = `
+          <div class="coupon-grid">
+            ${couponCards}
+          </div>
+        `;
+      }
+
+      getPromotionDetails(promotion) {
+        const details = [];
+        
+        switch (promotion.type) {
+          case 'percentage':
+            details.push(
+              { label: 'ส่วนลด', value: `${promotion.discount_value}%` },
+              { label: 'ยอดขั้นต่ำ', value: `${promotion.min_order_amount} บาท` }
+            );
+            if (promotion.max_discount_amount) {
+              details.push({ label: 'ลดสูงสุด', value: `${promotion.max_discount_amount} บาท` });
+            }
+            break;
+            
+          case 'fixed_amount':
+            details.push(
+              { label: 'ส่วนลด', value: `${promotion.discount_value} บาท` },
+              { label: 'ยอดขั้นต่ำ', value: `${promotion.min_order_amount} บาท` }
+            );
+            break;
+            
+          case 'free_shipping':
+            details.push({ label: 'ส่วนลด', value: 'ฟรีค่าจัดส่ง' });
+            break;
+            
+          case 'buy_x_get_y':
+            details.push({ 
+              label: 'โปรโมชั่น', 
+              value: `ซื้อ ${promotion.buy_quantity} แถม ${promotion.get_quantity}` 
+            });
+            break;
+            
+          case 'category_discount':
+            details.push(
+              { label: 'ส่วนลด', value: `${promotion.discount_value}% สำหรับหมวดหมู่เฉพาะ` },
+              { label: 'ลดสูงสุด', value: `${promotion.max_discount_amount || 'ไม่จำกัด'} บาท` }
+            );
+            break;
+        }
+        
+        // Format expiry date
+        const expiryDate = new Date(promotion.end_date);
+        const formattedDate = expiryDate.toLocaleDateString('th-TH', {
+          year: 'numeric',
+          month: 'long',
+          day: 'numeric'
+        });
+        
+        details.push(
+          { label: 'หมดอายุ', value: formattedDate }
+        );
+        
+        if (promotion.usage_per_customer) {
+          details.push(
+            { label: 'ใช้ได้', value: `${promotion.usage_per_customer} ครั้งต่อคน` }
+          );
+        }
+        
+        return details;
+      }
+
+      showEmpty() {
+        this.container.innerHTML = `
+          <div class="empty-container">
+            <h3>ไม่มีคูปองที่สามารถรับได้</h3>
+            <p>ขณะนี้ยังไม่มีโปรโมชั่นที่เปิดใช้งาน</p>
+            <p>กลับมาดูใหม่ภายหลัง หรือติดตามข่าวสารจากเราเพื่อไม่พลาดโปรโมชั่นดีๆ!</p>
+            <button class="retry-btn" onclick="location.reload()">โหลดใหม่</button>
+          </div>
+        `;
+      }
+
+      showError(errorMessage) {
+        this.container.innerHTML = `
+          <div class="error-container">
+            <h3>เกิดข้อผิดพลาด</h3>
+            <p>ไม่สามารถโหลดคูปองได้ในขณะนี้</p>
+            <p><strong>รายละเอียดข้อผิดพลาด:</strong> ${errorMessage}</p>
+            <button class="retry-btn" onclick="location.reload()">ลองใหม่</button>
+          </div>
+        `;
+      }
+    }
+
+    async function claimCoupon(promotion_id, promotionName, promoCode) {
+      const button = event.target;
+      const card = button.closest('.coupon-card');
+      const originalText = button.textContent;
+      
+      // Disable button and show loading
+      button.disabled = true;
+      button.textContent = 'กำลังรับคูปอง...';
+      
+      try {
+        const response = await fetch('/api/coupons/claim', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Accept': 'application/json'
+          },
+          body: JSON.stringify({ promotion_id })
+        });
+        
+        const result = await response.json();
+        
+        if (result.success) {
+          // Success animation and feedback
+          card.classList.add('claimed');
+          button.textContent = 'รับคูปองแล้ว ✓';
+          button.style.background = 'linear-gradient(135deg, #28a745, #20c997)';
+          
+          // Show success notification
+          showNotification(`รับคูปอง "${promotionName}" เรียบร้อยแล้ว! ใช้รหัส ${promoCode} ในตะกร้าสินค้า`, 'success');
+          
+          // Optional: Auto redirect to cart after a few seconds
+          setTimeout(() => {
+            if (confirm('ต้องการไปที่ตะกร้าสินค้าเพื่อใช้คูปองหรือไม่?')) {
+              window.location.href = '/cart';
+            }
+          }, 2000);
+          
+        } else {
+          throw new Error(result.message);
+        }
+        
+      } catch (error) {
+        console.error('Error claiming coupon:', error);
+        showNotification('เกิดข้อผิดพลาด: ' + error.message, 'error');
+        
+        // Reset button
+        button.disabled = false;
+        button.textContent = originalText;
+        button.style.background = '';
+      }
+    }
+
+    function showNotification(message, type = 'info') {
+      // Create notification element if it doesn't exist
+      let notification = document.getElementById('notification');
+      if (!notification) {
+        notification = document.createElement('div');
+        notification.id = 'notification';
+        notification.style.cssText = `
+          position: fixed;
+          top: 20px;
+          right: 20px;
+          padding: 15px 20px;
+          border-radius: 8px;
+          color: white;
+          font-weight: 600;
+          z-index: 1000;
+          transform: translateX(100%);
+          transition: transform 0.3s ease;
+          max-width: 400px;
+          word-wrap: break-word;
+        `;
+        document.body.appendChild(notification);
+      }
+
+      // Set background color based on type
+      const colors = {
+        success: 'linear-gradient(135deg, #28a745, #20c997)',
+        error: 'linear-gradient(135deg, #dc3545, #c82333)',
+        info: 'linear-gradient(135deg, #1a1a1a, #333)'
+      };
+
+      notification.style.background = colors[type] || colors.info;
+      notification.textContent = message;
+      
+      // Show notification
+      notification.style.transform = 'translateX(0)';
+      
+      // Auto hide after 4 seconds
+      setTimeout(() => {
+        notification.style.transform = 'translateX(100%)';
+      }, 4000);
+    }
+
+    // Initialize when page loads
+    document.addEventListener('DOMContentLoaded', () => {
+      new CouponManager();
+    });
+  </script>
+</body>
+
+</html>

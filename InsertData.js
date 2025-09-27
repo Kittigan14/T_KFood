@@ -7,7 +7,6 @@ const db = new sqlite3.Database(dbPath, (err) => {
   console.log("✅ Connected to SQLite database:", dbPath);
 });
 
-
 const categories = [
   { id: 1, name: "เมนูผัด" },
   { id: 2, name: "เมนูต้ม" },
@@ -100,14 +99,80 @@ function insertPromotions() {
   promotions.forEach(promo => stmt.run(promo));
   stmt.finalize();
 
-  db.run(`INSERT OR IGNORE INTO Promotion_Categories (promotion_id, category_id) VALUES (5, 3)`);
+  // Link category discount promotion to desserts category
+  db.run(`INSERT OR IGNORE INTO Promotion_Categories (promotion_id, category_id) VALUES (5, 7)`);
   console.log("✅ Promotions inserted.");
+}
+
+function insertSampleCustomerCoupons() {
+  // First, check if there are any users in the database
+  db.get("SELECT customer_id FROM Users LIMIT 1", (err, user) => {
+    if (err) {
+      console.error("Error checking for users:", err);
+      return;
+    }
+    
+    if (!user) {
+      console.log("⚠️  No users found - skipping sample coupon assignment");
+      console.log("   Create some users first, then run this script again");
+      return;
+    }
+    
+    // Get all users to distribute coupons
+    db.all("SELECT customer_id FROM Users", (err, users) => {
+      if (err) {
+        console.error("Error fetching users:", err);
+        return;
+      }
+      
+      const stmt = db.prepare(`
+        INSERT OR IGNORE INTO Customer_Coupons 
+        (customer_id, promotion_id, status, expires_at) 
+        VALUES (?, ?, 'available', '2024-12-31 23:59:59')
+      `);
+      
+      // Give some sample coupons to users
+      users.forEach((user, index) => {
+        // Give different combinations of coupons to different users
+        switch (index % 3) {
+          case 0:
+            // First user gets NEW20, SAVE50, and FREESHIP
+            stmt.run([user.customer_id, 1]); // NEW20
+            stmt.run([user.customer_id, 2]); // SAVE50  
+            stmt.run([user.customer_id, 4]); // FREESHIP
+            break;
+          case 1:
+            // Second user gets SAVE50, DRINK321, and SWEET15
+            stmt.run([user.customer_id, 2]); // SAVE50
+            stmt.run([user.customer_id, 3]); // DRINK321
+            stmt.run([user.customer_id, 5]); // SWEET15
+            break;
+          case 2:
+            // Third user gets NEW20 and FREESHIP only
+            stmt.run([user.customer_id, 1]); // NEW20
+            stmt.run([user.customer_id, 4]); // FREESHIP
+            break;
+        }
+      });
+      
+      stmt.finalize();
+      console.log(`✅ Sample coupons assigned to ${users.length} users.`);
+    });
+  });
 }
 
 db.serialize(() => {
   insertCategories();
   insertProducts();
   insertPromotions();
+  
+  // Insert sample customer coupons after a brief delay to ensure promotions are inserted
+  setTimeout(() => {
+    insertSampleCustomerCoupons();
+  }, 100);
 });
 
-db.close(() => console.log("✅ Database closed."));
+// Close database after operations complete
+setTimeout(() => {
+  db.close(() => console.log("✅ Database closed."));
+}, 500);
