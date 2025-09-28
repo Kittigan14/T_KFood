@@ -1,0 +1,687 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>ชำระเงิน</title>
+  <link rel="stylesheet" href="/css/base.css">
+  <style>
+    .payment-container {
+      max-width: 600px;
+      margin: 0 auto;
+      background: white;
+      border-radius: 16px;
+      padding: 30px;
+      box-shadow: 0 10px 25px rgba(0, 0, 0, 0.1);
+    }
+
+    .order-info {
+      background: #f8f9fa;
+      padding: 20px;
+      border-radius: 12px;
+      margin-bottom: 30px;
+    }
+
+    .order-info h3 {
+      margin-bottom: 16px;
+      color: var(--color-primary);
+    }
+
+    .info-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+      gap: 12px;
+    }
+
+    .info-item {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 8px 0;
+      border-bottom: 1px solid #e5e7eb;
+    }
+
+    .info-item:last-child {
+      border-bottom: none;
+      font-weight: 700;
+      font-size: 1.1rem;
+      color: var(--color-primary);
+    }
+
+    .payment-methods {
+      margin-bottom: 30px;
+    }
+
+    .payment-methods h3 {
+      margin-bottom: 20px;
+      color: var(--color-primary);
+    }
+
+    .method-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+      gap: 16px;
+    }
+
+    .payment-option {
+      border: 2px solid #e5e7eb;
+      border-radius: 12px;
+      padding: 20px;
+      cursor: pointer;
+      transition: all 0.3s ease;
+      position: relative;
+    }
+
+    .payment-option:hover {
+      border-color: var(--color-primary);
+      transform: translateY(-2px);
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+    }
+
+    .payment-option.selected {
+      border-color: var(--color-primary);
+      background: #f0f9ff;
+    }
+
+    .payment-option input[type="radio"] {
+      position: absolute;
+      opacity: 0;
+      cursor: pointer;
+    }
+
+    .payment-icon {
+      font-size: 2rem;
+      margin-bottom: 12px;
+      display: block;
+    }
+
+    .payment-title {
+      font-weight: 600;
+      margin-bottom: 8px;
+      color: var(--color-primary);
+    }
+
+    .payment-desc {
+      font-size: 0.9rem;
+      color: #6b7280;
+      line-height: 1.4;
+    }
+
+    .amount-input {
+      margin-bottom: 30px;
+      display: none;
+    }
+
+    .amount-input.show {
+      display: block;
+    }
+
+    .amount-input label {
+      display: block;
+      margin-bottom: 8px;
+      font-weight: 600;
+      color: var(--color-primary);
+    }
+
+    .amount-input input {
+      width: 100%;
+      padding: 12px;
+      border: 2px solid #e5e7eb;
+      border-radius: 8px;
+      font-size: 1.1rem;
+      transition: border-color 0.3s ease;
+    }
+
+    .amount-input input:focus {
+      outline: none;
+      border-color: var(--color-primary);
+    }
+
+    .payment-details {
+      background: #fff7ed;
+      border: 1px solid #fed7aa;
+      border-radius: 12px;
+      padding: 20px;
+      margin-bottom: 30px;
+      display: none;
+    }
+
+    .payment-details.show {
+      display: block;
+    }
+
+    .qr-code {
+      text-align: center;
+      padding: 20px;
+    }
+
+    .qr-placeholder {
+      width: 200px;
+      height: 200px;
+      background: #f3f4f6;
+      border: 2px dashed #d1d5db;
+      border-radius: 12px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      margin: 0 auto 16px;
+      font-size: 3rem;
+      color: #9ca3af;
+    }
+
+    .payment-actions {
+      display: flex;
+      gap: 16px;
+    }
+
+    .btn {
+      flex: 1;
+      padding: 14px;
+      border: none;
+      border-radius: 8px;
+      font-size: 1rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.3s ease;
+    }
+
+    .btn-primary {
+      background: var(--color-primary);
+      color: white;
+    }
+
+    .btn-primary:hover:not(:disabled) {
+      background: #374151;
+      transform: translateY(-2px);
+    }
+
+    .btn-primary:disabled {
+      background: #9ca3af;
+      cursor: not-allowed;
+    }
+
+    .btn-secondary {
+      background: #6b7280;
+      color: white;
+    }
+
+    .btn-secondary:hover {
+      background: #4b5563;
+    }
+
+    .loading {
+      display: none;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      color: white;
+    }
+
+    .loading.show {
+      display: flex;
+    }
+
+    .spinner {
+      width: 16px;
+      height: 16px;
+      border: 2px solid rgba(255, 255, 255, 0.3);
+      border-top: 2px solid white;
+      border-radius: 50%;
+      animation: spin 1s linear infinite;
+    }
+
+    @keyframes spin {
+      0% { transform: rotate(0deg); }
+      100% { transform: rotate(360deg); }
+    }
+
+    .success-message {
+      text-align: center;
+      padding: 40px 20px;
+    }
+
+    .success-icon {
+      font-size: 4rem;
+      color: #10b981;
+      margin-bottom: 20px;
+    }
+
+    .success-message h3 {
+      color: #10b981;
+      margin-bottom: 16px;
+    }
+
+    .success-message p {
+      color: #6b7280;
+      margin-bottom: 24px;
+    }
+
+    .error-message {
+      background: #fee2e2;
+      border: 1px solid #fecaca;
+      color: #991b1b;
+      padding: 16px;
+      border-radius: 8px;
+      margin: 20px 0;
+      display: none;
+    }
+
+    .error-message.show {
+      display: block;
+    }
+
+    .order-id-display {
+      background: #f3f4f6;
+      padding: 12px;
+      border-radius: 8px;
+      font-family: monospace;
+      font-size: 1.1rem;
+      font-weight: 700;
+      text-align: center;
+      margin: 20px 0;
+      border: 2px solid #e5e7eb;
+    }
+
+    @media (max-width: 768px) {
+      .payment-container {
+        margin: 20px;
+        padding: 20px;
+      }
+
+      .method-grid {
+        grid-template-columns: 1fr;
+      }
+
+      .payment-actions {
+        flex-direction: column;
+      }
+    }
+  </style>
+</head>
+
+<body>
+  <div class="container">
+    <h2>ชำระเงิน</h2>
+    
+    <div class="payment-container">
+      <div id="paymentContent">
+        <div class="order-info">
+          <h3>ข้อมูลคำสั่งซื้อ</h3>
+          <div id="orderDetails">
+            <div class="loading-container">
+              <div class="loading-spinner"></div>
+              <p>กำลังโหลดข้อมูล...</p>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    class PaymentProcessor {
+      constructor() {
+        this.orderId = this.getOrderIdFromUrl();
+        this.orderData = null;
+        this.selectedMethod = null;
+        this.loadOrderData();
+      }
+
+      getOrderIdFromUrl() {
+        const pathSegments = window.location.pathname.split('/');
+        const orderIndex = pathSegments.indexOf('orders');
+        if (orderIndex !== -1 && pathSegments[orderIndex + 1]) {
+          return pathSegments[orderIndex + 1];
+        }
+        return null;
+      }
+
+      async loadOrderData() {
+        if (!this.orderId) {
+          this.showError('ไม่พบหมายเลขคำสั่งซื้อ');
+          return;
+        }
+
+        try {
+          const response = await fetch(`/api/orders/${this.orderId}`, {
+            credentials: 'include'
+          });
+          
+          const data = await response.json();
+          
+          if (!response.ok || !data.success) {
+            throw new Error(data.error || 'ไม่สามารถโหลดข้อมูลคำสั่งซื้อได้');
+          }
+
+          this.orderData = data.order;
+          this.renderOrderDetails();
+          this.renderPaymentMethods();
+          
+        } catch (err) {
+          console.error('Error loading order:', err);
+          this.showError('เกิดข้อผิดพลาดในการโหลดข้อมูล: ' + err.message);
+        }
+      }
+
+      renderOrderDetails() {
+        const orderDetails = document.getElementById('orderDetails');
+        
+        orderDetails.innerHTML = `
+          <div class="order-id-display">คำสั่งซื้อ #${this.orderData.order_id}</div>
+          
+          <div class="info-grid">
+            <div class="info-item">
+              <span>วันที่สั่งซื้อ:</span>
+              <span>${new Date(this.orderData.created_at).toLocaleString('th-TH')}</span>
+            </div>
+            <div class="info-item">
+              <span>สถานะคำสั่งซื้อ:</span>
+              <span>${this.getStatusText(this.orderData.order_status)}</span>
+            </div>
+            <div class="info-item">
+              <span>ที่อยู่จัดส่ง:</span>
+              <span>${this.orderData.delivery_address || 'รับที่ร้าน'}</span>
+            </div>
+            <div class="info-item">
+              <span>ยอดที่ต้องชำระ:</span>
+              <span>${this.orderData.final_amount} บาท</span>
+            </div>
+          </div>
+        `;
+      }
+
+      renderPaymentMethods() {
+        const content = document.getElementById('paymentContent');
+        
+        content.innerHTML += `
+          <div class="payment-methods">
+            <h3>เลือกวิธีการชำระเงิน</h3>
+            <div class="method-grid">
+              <div class="payment-option" data-method="cash">
+                <input type="radio" name="payment" value="cash">
+                <div class="payment-icon">💵</div>
+                <div class="payment-title">เงินสดปลายทาง</div>
+                <div class="payment-desc">ชำระเงินสดเมื่อได้รับสินค้า</div>
+              </div>
+              
+              <div class="payment-option" data-method="credit_card">
+                <input type="radio" name="payment" value="credit_card">
+                <div class="payment-icon">💳</div>
+                <div class="payment-title">บัตรเครดิต</div>
+                <div class="payment-desc">ชำระผ่านบัตรเครดิต/เดบิต</div>
+              </div>
+              
+              <div class="payment-option" data-method="mobile_banking">
+                <input type="radio" name="payment" value="mobile_banking">
+                <div class="payment-icon">📱</div>
+                <div class="payment-title">โมบายแบงกิ้ง</div>
+                <div class="payment-desc">ชำระผ่านแอปธนาคาร</div>
+              </div>
+              
+              <div class="payment-option" data-method="promptpay">
+                <input type="radio" name="payment" value="promptpay">
+                <div class="payment-icon">💎</div>
+                <div class="payment-title">พร้อมเพย์</div>
+                <div class="payment-desc">สแกน QR Code เพื่อชำระ</div>
+              </div>
+            </div>
+          </div>
+
+          <div id="paymentDetails" class="payment-details">
+            <!-- Payment-specific details will be shown here -->
+          </div>
+
+          <div class="amount-input" id="amountInput">
+            <label for="paymentAmount">จำนวนเงินที่ชำระ (บาท)</label>
+            <input type="number" id="paymentAmount" min="1" step="0.01" 
+                   value="${this.orderData.final_amount}" required>
+          </div>
+
+          <div id="errorMessage" class="error-message"></div>
+
+          <div class="payment-actions">
+            <button type="button" class="btn btn-secondary" onclick="history.back()">
+              ย้อนกลับ
+            </button>
+            <button type="button" class="btn btn-primary" id="payButton" onclick="paymentProcessor.processPayment()" disabled>
+              <span id="payButtonText">เลือกวิธีการชำระเงิน</span>
+              <div class="loading" id="payButtonLoading">
+                <div class="spinner"></div>
+                <span>กำลังดำเนินการ...</span>
+              </div>
+            </button>
+          </div>
+        `;
+
+        this.attachEventListeners();
+      }
+
+      attachEventListeners() {
+        const paymentOptions = document.querySelectorAll('.payment-option');
+        
+        paymentOptions.forEach(option => {
+          option.addEventListener('click', () => {
+            const method = option.dataset.method;
+            this.selectPaymentMethod(method);
+          });
+        });
+
+        // Auto-fill amount for cash payments
+        const amountInput = document.getElementById('paymentAmount');
+        amountInput.addEventListener('input', () => {
+          this.validateAmount();
+        });
+      }
+
+      selectPaymentMethod(method) {
+        // Remove previous selections
+        document.querySelectorAll('.payment-option').forEach(opt => {
+          opt.classList.remove('selected');
+          opt.querySelector('input[type="radio"]').checked = false;
+        });
+
+        // Select current method
+        const selectedOption = document.querySelector(`[data-method="${method}"]`);
+        selectedOption.classList.add('selected');
+        selectedOption.querySelector('input[type="radio"]').checked = true;
+
+        this.selectedMethod = method;
+        this.showPaymentDetails(method);
+        this.updatePayButton();
+      }
+
+      showPaymentDetails(method) {
+        const detailsDiv = document.getElementById('paymentDetails');
+        const amountInput = document.getElementById('amountInput');
+        
+        switch(method) {
+          case 'cash':
+            detailsDiv.innerHTML = `
+              <h4>การชำระเงินสดปลายทาง</h4>
+              <p>คุณสามารถชำระเงินสดได้เมื่อพนักงานส่งสินค้าถึงที่อยู่ของคุณ</p>
+              <p><strong>หมายเหตุ:</strong> กรุณาเตรียมเงินทอนให้พอเพียง</p>
+            `;
+            amountInput.classList.add('show');
+            break;
+            
+          case 'promptpay':
+            detailsDiv.innerHTML = `
+              <h4>ชำระผ่านพร้อมเพย์</h4>
+              <div class="qr-code">
+                <div class="qr-placeholder">QR</div>
+                <p>สแกน QR Code เพื่อชำระเงิน</p>
+                <p><strong>จำนวน:</strong> ${this.orderData.final_amount} บาท</p>
+                <p><small>หลังจากชำระเงินแล้ว กรุณากดปุ่ม "ยืนยันการชำระเงิน"</small></p>
+              </div>
+            `;
+            amountInput.classList.remove('show');
+            break;
+            
+          case 'mobile_banking':
+            detailsDiv.innerHTML = `
+              <h4>ชำระผ่านโมบายแบงกิ้ง</h4>
+              <p><strong>บัญชีรับเงิน:</strong></p>
+              <p>ธนาคารกสิกรไทย<br>
+              เลขที่บัญชี: 123-4-56789-0<br>
+              ชื่อบัญชี: ร้านอาหาร T&KFood</p>
+              <p><strong>จำนวนเงิน:</strong> ${this.orderData.final_amount} บาท</p>
+              <p><small>กรุณาโอนเงินและกดปุ่ม "ยืนยันการชำระเงิน"</small></p>
+            `;
+            amountInput.classList.remove('show');
+            break;
+            
+          case 'credit_card':
+            detailsDiv.innerHTML = `
+              <h4>ชำระผ่านบัตรเครดิต/เดบิต</h4>
+              <p>คุณจะถูกเปลี่ยนเส้นทางไปยังหน้าชำระเงินที่ปลอดภัย</p>
+              <p><strong>จำนวนเงิน:</strong> ${this.orderData.final_amount} บาท</p>
+              <p><small>รองรับบัตร Visa, Mastercard, JCB</small></p>
+            `;
+            amountInput.classList.remove('show');
+            break;
+        }
+        
+        detailsDiv.classList.add('show');
+      }
+
+      updatePayButton() {
+        const payButton = document.getElementById('payButton');
+        const payButtonText = document.getElementById('payButtonText');
+        
+        if (this.selectedMethod) {
+          payButton.disabled = false;
+          
+          switch(this.selectedMethod) {
+            case 'cash':
+              payButtonText.textContent = 'ยืนยันการสั่งซื้อ';
+              break;
+            case 'promptpay':
+            case 'mobile_banking':
+              payButtonText.textContent = 'ยืนยันการชำระเงิน';
+              break;
+            case 'credit_card':
+              payButtonText.textContent = 'ดำเนินการชำระเงิน';
+              break;
+          }
+        } else {
+          payButton.disabled = true;
+          payButtonText.textContent = 'เลือกวิธีการชำระเงิน';
+        }
+      }
+
+      validateAmount() {
+        const amountInput = document.getElementById('paymentAmount');
+        const amount = parseFloat(amountInput.value);
+        
+        if (this.selectedMethod === 'cash' && amount < this.orderData.final_amount) {
+          this.showError('จำนวนเงินต้องไม่น้อยกว่ายอดที่ต้องชำระ');
+          return false;
+        }
+        
+        this.hideError();
+        return true;
+      }
+
+      async processPayment() {
+        if (!this.selectedMethod) {
+          this.showError('กรุณาเลือกวิธีการชำระเงิน');
+          return;
+        }
+
+        if (this.selectedMethod === 'cash' && !this.validateAmount()) {
+          return;
+        }
+
+        const payButton = document.getElementById('payButton');
+        const payButtonText = document.getElementById('payButtonText');
+        const payButtonLoading = document.getElementById('payButtonLoading');
+        
+        // Show loading state
+        payButton.disabled = true;
+        payButtonText.style.display = 'none';
+        payButtonLoading.classList.add('show');
+
+        try {
+          const amountInput = document.getElementById('paymentAmount');
+          const amount = this.selectedMethod === 'cash' 
+            ? parseFloat(amountInput.value) 
+            : this.orderData.final_amount;
+
+          const response = await fetch(`/api/payments/${this.orderId}/pay`, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json'
+            },
+            credentials: 'include',
+            body: JSON.stringify({
+              method: this.selectedMethod,
+              amount: amount
+            })
+          });
+
+          const result = await response.json();
+          
+          if (!response.ok || !result.success) {
+            throw new Error(result.error || 'การชำระเงินไม่สำเร็จ');
+          }
+
+          this.showPaymentSuccess();
+
+        } catch (err) {
+          console.error('Payment error:', err);
+          this.showError('เกิดข้อผิดพลาดในการชำระเงิน: ' + err.message);
+          
+          // Reset button state
+          payButton.disabled = false;
+          payButtonText.style.display = 'inline';
+          payButtonLoading.classList.remove('show');
+        }
+      }
+
+      showPaymentSuccess() {
+        const content = document.getElementById('paymentContent');
+        
+        content.innerHTML = `
+          <div class="success-message">
+            <div class="success-icon">✅</div>
+            <h3>ชำระเงินสำเร็จ</h3>
+            <p>ขอบคุณสำหรับการชำระเงิน คำสั่งซื้อของคุณได้รับการยืนยันแล้ว</p>
+            <div class="order-id-display">คำสั่งซื้อ #${this.orderData.order_id}</div>
+            <p>คุณสามารถติดตามสถานะการจัดส่งได้ที่หน้าประวัติการสั่งซื้อ</p>
+            <div class="payment-actions">
+              <a href="/orders" class="btn btn-primary">ดูประวัติการสั่งซื้อ</a>
+              <a href="/" class="btn btn-secondary">กลับหน้าแรก</a>
+            </div>
+          </div>
+        `;
+      }
+
+      getStatusText(status) {
+        const statusMap = {
+          'pending': 'รอดำเนินการ',
+          'accepted': 'รับออเดอร์แล้ว',
+          'cooking': 'กำลังเตรียม',
+          'delivering': 'กำลังจัดส่ง',
+          'completed': 'เสร็จสิ้น',
+          'cancelled': 'ยกเลิก'
+        };
+        return statusMap[status] || status;
+      }
+
+      showError(message) {
+        const errorDiv = document.getElementById('errorMessage');
+        errorDiv.textContent = message;
+        errorDiv.classList.add('show');
+      }
+
+      hideError() {
+        const errorDiv = document.getElementById('errorMessage');
+        errorDiv.classList.remove('show');
+      }
+    }
+
+    // Initialize payment processor
+    const paymentProcessor = new PaymentProcessor();
+  </script>
+</body>
+</html>

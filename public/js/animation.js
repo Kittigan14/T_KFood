@@ -1,6 +1,7 @@
 const faders = document.querySelectorAll('.fade-slide');
+const productFaders = document.querySelectorAll('#productList .fade-slide');
 
-const observer = new IntersectionObserver(entries => {
+const observer1 = new IntersectionObserver(entries => {
   entries.forEach(entry => {
     if (entry.isIntersecting) {
       entry.target.classList.add('show');
@@ -8,5 +9,4 @@ const observer = new IntersectionObserver(entries => {
   });
 }, { threshold: 0.2 });
 
-faders.forEach(el => observer.observe(el));
-
+faders.forEach(el => observer1.observe(el));

@@ -31,7 +31,7 @@
       async loadCoupons() {
         try {
           console.log('Loading coupons...');
-          
+
           const response = await fetch('/api/promotions/active', {
             headers: {
               'Accept': 'application/json'
@@ -39,7 +39,7 @@
           });
 
           console.log('Response status:', response.status);
-          
+
           if (!response.ok) {
             throw new Error(`HTTP ${response.status}: ${response.statusText}`);
           }
@@ -67,7 +67,7 @@
       renderCoupons(promotions) {
         const couponCards = promotions.map(promotion => {
           const details = this.getPromotionDetails(promotion);
-          
+
           return `
             <div class="coupon-card" data-type="${promotion.type}">
               <div class="coupon-header">
@@ -102,44 +102,59 @@
 
       getPromotionDetails(promotion) {
         const details = [];
-        
+
         switch (promotion.type) {
           case 'percentage':
-            details.push(
-              { label: 'ส่วนลด', value: `${promotion.discount_value}%` },
-              { label: 'ยอดขั้นต่ำ', value: `${promotion.min_order_amount} บาท` }
-            );
+            details.push({
+              label: 'ส่วนลด',
+              value: `${promotion.discount_value}%`
+            }, {
+              label: 'ยอดขั้นต่ำ',
+              value: `${promotion.min_order_amount} บาท`
+            });
             if (promotion.max_discount_amount) {
-              details.push({ label: 'ลดสูงสุด', value: `${promotion.max_discount_amount} บาท` });
+              details.push({
+                label: 'ลดสูงสุด',
+                value: `${promotion.max_discount_amount} บาท`
+              });
             }
             break;
-            
+
           case 'fixed_amount':
-            details.push(
-              { label: 'ส่วนลด', value: `${promotion.discount_value} บาท` },
-              { label: 'ยอดขั้นต่ำ', value: `${promotion.min_order_amount} บาท` }
-            );
-            break;
-            
-          case 'free_shipping':
-            details.push({ label: 'ส่วนลด', value: 'ฟรีค่าจัดส่ง' });
-            break;
-            
-          case 'buy_x_get_y':
-            details.push({ 
-              label: 'โปรโมชั่น', 
-              value: `ซื้อ ${promotion.buy_quantity} แถม ${promotion.get_quantity}` 
+            details.push({
+              label: 'ส่วนลด',
+              value: `${promotion.discount_value} บาท`
+            }, {
+              label: 'ยอดขั้นต่ำ',
+              value: `${promotion.min_order_amount} บาท`
             });
             break;
-            
+
+          case 'free_shipping':
+            details.push({
+              label: 'ส่วนลด',
+              value: 'ฟรีค่าจัดส่ง'
+            });
+            break;
+
+          case 'buy_x_get_y':
+            details.push({
+              label: 'โปรโมชั่น',
+              value: `ซื้อ ${promotion.buy_quantity} แถม ${promotion.get_quantity}`
+            });
+            break;
+
           case 'category_discount':
-            details.push(
-              { label: 'ส่วนลด', value: `${promotion.discount_value}% สำหรับหมวดหมู่เฉพาะ` },
-              { label: 'ลดสูงสุด', value: `${promotion.max_discount_amount || 'ไม่จำกัด'} บาท` }
-            );
+            details.push({
+              label: 'ส่วนลด',
+              value: `${promotion.discount_value}% สำหรับหมวดหมู่เฉพาะ`
+            }, {
+              label: 'ลดสูงสุด',
+              value: `${promotion.max_discount_amount || 'ไม่จำกัด'} บาท`
+            });
             break;
         }
-        
+
         // Format expiry date
         const expiryDate = new Date(promotion.end_date);
         const formattedDate = expiryDate.toLocaleDateString('th-TH', {
@@ -147,17 +162,19 @@
           month: 'long',
           day: 'numeric'
         });
-        
-        details.push(
-          { label: 'หมดอายุ', value: formattedDate }
-        );
-        
+
+        details.push({
+          label: 'หมดอายุ',
+          value: formattedDate
+        });
+
         if (promotion.usage_per_customer) {
-          details.push(
-            { label: 'ใช้ได้', value: `${promotion.usage_per_customer} ครั้งต่อคน` }
-          );
+          details.push({
+            label: 'ใช้ได้',
+            value: `${promotion.usage_per_customer} ครั้งต่อคน`
+          });
         }
-        
+
         return details;
       }
 
@@ -188,11 +205,10 @@
       const button = event.target;
       const card = button.closest('.coupon-card');
       const originalText = button.textContent;
-      
-      // Disable button and show loading
+
       button.disabled = true;
       button.textContent = 'กำลังรับคูปอง...';
-      
+
       try {
         const response = await fetch('/api/coupons/claim', {
           method: 'POST',
@@ -200,41 +216,28 @@
             'Content-Type': 'application/json',
             'Accept': 'application/json'
           },
-          body: JSON.stringify({ promotion_id })
+          body: JSON.stringify({
+            promotion_id
+          })
         });
-        
+
         const result = await response.json();
-        
+
         if (result.success) {
-          // Success animation and feedback
-          card.classList.add('claimed');
-          button.textContent = 'รับคูปองแล้ว ✓';
-          button.style.background = 'linear-gradient(135deg, #28a745, #20c997)';
-          
-          // Show success notification
-          showNotification(`รับคูปอง "${promotionName}" เรียบร้อยแล้ว! ใช้รหัส ${promoCode} ในตะกร้าสินค้า`, 'success');
-          
-          // Optional: Auto redirect to cart after a few seconds
-          setTimeout(() => {
-            if (confirm('ต้องการไปที่ตะกร้าสินค้าเพื่อใช้คูปองหรือไม่?')) {
-              window.location.href = '/cart';
-            }
-          }, 2000);
-          
+          showNotification(`รับคูปอง "${promotionName}" เรียบร้อยแล้ว!`, 'success');
+          card.remove();
         } else {
           throw new Error(result.message);
         }
-        
+
       } catch (error) {
         console.error('Error claiming coupon:', error);
         showNotification('เกิดข้อผิดพลาด: ' + error.message, 'error');
-        
-        // Reset button
         button.disabled = false;
         button.textContent = originalText;
-        button.style.background = '';
       }
     }
+
 
     function showNotification(message, type = 'info') {
       // Create notification element if it doesn't exist
@@ -268,10 +271,10 @@
 
       notification.style.background = colors[type] || colors.info;
       notification.textContent = message;
-      
+
       // Show notification
       notification.style.transform = 'translateX(0)';
-      
+
       // Auto hide after 4 seconds
       setTimeout(() => {
         notification.style.transform = 'translateX(100%)';

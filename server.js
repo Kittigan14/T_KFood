@@ -154,13 +154,34 @@ function authenticateAdminPage(req, res, next) {
     });
 }
 
+function authenticateUser(req, res, next) {
+    const token = req.cookies.token;
+
+    if (!token) {
+        return res.status(401).json({
+            success: false,
+            error: 'กรุณาเข้าสู่ระบบก่อนสั่งซื้อ'
+        });
+    }
+
+    jwt.verify(token, JWT_SECRET, (err, user) => {
+        if (err || user.role !== 'customer') {
+            return res.status(401).json({
+                success: false,
+                error: 'สิทธิ์ไม่ถูกต้อง'
+            });
+        }
+
+        req.user = user;
+        next();
+    });
+}
+
 initializeDatabase();
 
-// Initialize Database Tables
 function initializeDatabase() {
     console.log('Initializing database...');
 
-    // Users table
     db.run(`
         CREATE TABLE IF NOT EXISTS Users (
             customer_id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -431,20 +452,21 @@ app.get("/", (req, res) => {
             if (err) return res.status(500).send("DB error: " + err.message);
 
             db.all(`
-        SELECT product_id, name, price, image_url, category_id 
-        FROM Products 
-        WHERE status = 'available'
-        ORDER BY created_at DESC
+                SELECT product_id, name, price, image_url, category_id 
+                FROM Products 
+                WHERE status = 'available'
+                ORDER BY created_at DESC
         
       `, [], (err, products) => {
                 if (err) return res.status(500).send("DB error: " + err.message);
 
                 db.all(`
-          SELECT r.review_id, r.comment, r.rating, r.created_at, u.name 
-          FROM Reviews r
-          JOIN Users u ON r.customer_id = u.customer_id
-          ORDER BY r.created_at DESC
-          LIMIT 5
+                    SELECT r.review_id, r.comment, r.rating, r.created_at, u.name 
+                    FROM Reviews r
+                    JOIN Users u ON r.customer_id = u.customer_id
+                    WHERE r.comment IS NOT NULL AND r.comment != ''
+                    ORDER BY r.created_at DESC
+                    LIMIT 5
         `, [], (err, reviews) => {
                     if (err) return res.status(500).send("DB error: " + err.message);
 
@@ -598,6 +620,56 @@ app.get('/api/users', authenticateToken, authenticateAdmin, (req, res) => {
             success: true,
             users: rows
         });
+    });
+});
+
+app.get('/profile', authenticateUser, (req, res) => {
+    const customer_id = req.user.customer_id;
+
+    db.get(
+        `SELECT customer_id, name, email, phone, address FROM Users WHERE customer_id = ?`,
+        [customer_id],
+        (err, user) => {
+            if (err || !user) {
+                console.error("DB error:", err);
+                return res.status(500).send("ไม่สามารถโหลดข้อมูลผู้ใช้ได้");
+            }
+            res.render("edit-profile", { customer: user });
+        }
+    );
+});
+
+app.put('/api/users/profile', authenticateUser, (req, res) => {
+    const customer_id = req.user.customer_id;
+    const { name, email, phone, address } = req.body;
+
+    if (!name || !email) {
+        return res.status(400).json({
+            success: false,
+            error: 'กรุณากรอกชื่อและอีเมล'
+        });
+    }
+
+    const query = `
+        UPDATE Users
+        SET name = ?, email = ?, phone = ?, address = ?
+        WHERE customer_id = ?
+    `;
+
+    db.run(query, [name, email, phone, address, customer_id], function (err) {
+        if (err) {
+            console.error("DB ERROR (update profile):", err);
+            return res.status(500).json({ success: false, error: err.message });
+        }
+
+        if (this.changes === 0) {
+            return res.status(404).json({
+                success: false,
+                error: 'ไม่พบผู้ใช้'
+            });
+        }
+
+        res.json({ success: true, message: 'อัปเดตข้อมูลสำเร็จ' });
     });
 });
 
@@ -1196,23 +1268,42 @@ app.get('/api/coupons/available', (req, res) => {
 
 // Get all active promotions
 app.get('/api/promotions/active', (req, res) => {
-    const query = `
-        SELECT * FROM Promotions 
-        WHERE status = 'active' 
-        AND start_date <= datetime('now') 
-        AND end_date >= datetime('now')
-        ORDER BY created_at DESC
+    const token = req.cookies.token;
+    if (!token) return res.status(401).json({
+        error: 'กรุณาเข้าสู่ระบบก่อน'
+    });
+
+    jwt.verify(token, JWT_SECRET, (err, user) => {
+        if (err) return res.status(403).json({
+            error: 'Invalid token'
+        });
+
+        const customer_id = user.customer_id;
+
+        const query = `
+      SELECT p.*
+      FROM Promotions p
+      WHERE p.status = 'active'
+        AND datetime(p.start_date) <= datetime('now')
+        AND datetime(p.end_date) >= datetime('now')
+        AND NOT EXISTS (
+          SELECT 1 
+          FROM Customer_Coupons cc 
+          WHERE cc.customer_id = ? 
+            AND cc.promotion_id = p.promotion_id
+        )
+      ORDER BY datetime(p.created_at) DESC
     `;
 
-    db.all(query, [], (err, rows) => {
-        if (err) {
-            return res.status(500).json({
+        db.all(query, [customer_id], (err, rows) => {
+            if (err) return res.status(500).json({
                 error: err.message
             });
-        }
-        res.json({
-            success: true,
-            promotions: rows
+
+            res.json({
+                success: true,
+                promotions: rows
+            });
         });
     });
 });
@@ -1242,7 +1333,7 @@ app.post('/api/promotions/validate', (req, res) => {
             });
         }
 
-        // Check if customer has this coupon available
+        // ✅ ตรวจสอบจาก Customer_Coupons (ต้อง claim ก่อนถึงจะใช้ได้)
         const couponQuery = `
             SELECT cc.coupon_id, cc.status, p.*
             FROM Customer_Coupons cc
@@ -1257,16 +1348,14 @@ app.post('/api/promotions/validate', (req, res) => {
         `;
 
         db.get(couponQuery, [customer_id, promo_code], (err, coupon) => {
-            if (err) {
-                return res.status(500).json({
-                    error: err.message
-                });
-            }
+            if (err) return res.status(500).json({
+                error: err.message
+            });
 
             if (!coupon) {
                 return res.status(400).json({
                     valid: false,
-                    message: 'รหัสโปรโมชั่นไม่ถูกต้องหรือหมดอายุแล้ว หรือคุณยังไม่ได้รับคูปองนี้'
+                    message: 'รหัสโปรโมชั่นไม่ถูกต้อง, หมดอายุแล้ว หรือยังไม่ได้รับคูปองนี้'
                 });
             }
 
@@ -1277,20 +1366,17 @@ app.post('/api/promotions/validate', (req, res) => {
                 });
             }
 
-            // Check usage limit per customer if applicable
+            // ตรวจสอบ usage limit ต่อคน
             if (coupon.usage_per_customer) {
                 const usageQuery = `
                     SELECT COUNT(*) as usage_count 
                     FROM Promotion_Usage 
                     WHERE promotion_id = ? AND customer_id = ?
                 `;
-
-                db.get(usageQuery, [coupon.promotion_id, customer_id], (err, row) => {
-                    if (err) {
-                        return res.status(500).json({
-                            error: err.message
-                        });
-                    }
+                db.get(usageQuery, [coupon.promotion_id, customer_id], (err2, row) => {
+                    if (err2) return res.status(500).json({
+                        error: err2.message
+                    });
 
                     if (row.usage_count >= coupon.usage_per_customer) {
                         return res.status(400).json({
@@ -1300,21 +1386,19 @@ app.post('/api/promotions/validate', (req, res) => {
                     }
 
                     const discount = calculateDiscount(coupon, order_amount, cart_items || []);
-
                     res.json({
                         valid: true,
-                        coupon: coupon,
-                        discount: discount,
+                        coupon,
+                        discount,
                         message: `ใช้ส่วนลดได้ ${discount.amount} บาท`
                     });
                 });
             } else {
                 const discount = calculateDiscount(coupon, order_amount, cart_items || []);
-
                 res.json({
                     valid: true,
-                    coupon: coupon,
-                    discount: discount,
+                    coupon,
+                    discount,
                     message: `ใช้ส่วนลดได้ ${discount.amount} บาท`
                 });
             }
@@ -1345,7 +1429,6 @@ app.post('/api/coupons/use', (req, res) => {
             });
         }
 
-        // Get coupon details first
         const getCouponQuery = `
             SELECT cc.coupon_id, cc.status, p.*
             FROM Customer_Coupons cc
@@ -2134,7 +2217,9 @@ app.put('/api/admin/orders/:id/status', authenticateAdmin, (req, res) => {
 
 // Enhanced member search
 app.get('/api/admin/members/search', authenticateAdmin, (req, res) => {
-    const { q } = req.query;
+    const {
+        q
+    } = req.query;
 
     let query = `
         SELECT 
@@ -2166,9 +2251,15 @@ app.get('/api/admin/members/search', authenticateAdmin, (req, res) => {
     db.all(query, params, (err, rows) => {
         if (err) {
             console.error("SQL Error (members search):", err.message);
-            return res.status(500).json({ success: false, error: err.message });
+            return res.status(500).json({
+                success: false,
+                error: err.message
+            });
         }
-        res.json({ success: true, members: rows });
+        res.json({
+            success: true,
+            members: rows
+        });
     });
 });
 
@@ -2192,9 +2283,15 @@ app.get('/api/admin/members', authenticateAdmin, (req, res) => {
     db.all(query, [], (err, rows) => {
         if (err) {
             console.error("SQL Error (members list):", err.message);
-            return res.status(500).json({ success: false, error: err.message });
+            return res.status(500).json({
+                success: false,
+                error: err.message
+            });
         }
-        res.json({ success: true, members: rows });
+        res.json({
+            success: true,
+            members: rows
+        });
     });
 });
 
@@ -2438,7 +2535,6 @@ app.delete('/api/admin/promotions/:id', authenticateAdmin, (req, res) => {
     });
 });
 
-// ============= CUSTOMER COUPONS MANAGEMENT =============
 app.get('/api/admin/customer-coupons', authenticateAdmin, (req, res) => {
     const query = `
         SELECT cc.*, u.name as customer_name, u.email, p.name as promo_name, p.promo_code
@@ -2638,11 +2734,6 @@ function createSystemLogsTable() {
     `);
 }
 
-// Call this in your initializeDatabase function
-// Add this line to your initializeDatabase() function:
-// createSystemLogsTable();
-
-// Update your existing login route to handle admin redirect
 app.post('/api/auth/login', (req, res) => {
     const {
         email,
@@ -2737,33 +2828,1126 @@ app.get('/api/search', (req, res) => {
     });
 });
 
-app.post('/api/orders', authenticateToken, (req, res) => {
+app.get('/orders', (req, res) => {
+    res.render('orders');
+});
+
+app.post('/api/orders', authenticateUser, (req, res) => {
     const {
-        total_amount,
-        discount_amount,
-        final_amount,
         delivery_address,
-        promo_code
+        payment_method = 'cash',
+        promo_code,
+        notes
     } = req.body;
     const customer_id = req.user.customer_id;
 
-    db.run(
-        `INSERT INTO Orders (customer_id, total_amount, discount_amount, final_amount, delivery_address, promo_code) 
-         VALUES (?, ?, ?, ?, ?, ?)`,
-        [customer_id, total_amount, discount_amount || 0, final_amount, delivery_address, promo_code],
-        function (err) {
-            if (err) return res.status(500).json({
+    db.serialize(() => {
+        db.run("BEGIN TRANSACTION");
+
+        // Get user's cart
+        db.get(`SELECT cart_id FROM Carts WHERE customer_id = ?`, [customer_id], (err, cart) => {
+            if (err) {
+                db.run("ROLLBACK");
+                return res.status(500).json({
+                    success: false,
+                    error: err.message
+                });
+            }
+
+            if (!cart) {
+                db.run("ROLLBACK");
+                return res.status(400).json({
+                    success: false,
+                    error: 'ไม่พบตะกร้าสินค้า'
+                });
+            }
+
+            // Get cart items with product validation
+            const query = `
+                SELECT ci.*, p.name, p.price, p.status 
+                FROM Cart_Items ci
+                JOIN Products p ON ci.product_id = p.product_id
+                WHERE ci.cart_id = ?
+            `;
+
+            db.all(query, [cart.cart_id], (err, cartItems) => {
+                if (err) {
+                    db.run("ROLLBACK");
+                    return res.status(500).json({
+                        success: false,
+                        error: err.message
+                    });
+                }
+
+                if (cartItems.length === 0) {
+                    db.run("ROLLBACK");
+                    return res.status(400).json({
+                        success: false,
+                        error: 'ตะกร้าสินค้าว่างเปล่า'
+                    });
+                }
+
+                // Check if all products are still available
+                const unavailableItems = cartItems.filter(item => item.status !== 'available');
+                if (unavailableItems.length > 0) {
+                    db.run("ROLLBACK");
+                    return res.status(400).json({
+                        success: false,
+                        error: `สินค้าบางรายการไม่พร้อมจำหน่าย: ${unavailableItems.map(i => i.name).join(', ')}`
+                    });
+                }
+
+                // Calculate totals
+                const total_amount = cartItems.reduce((sum, item) => sum + (item.price * item.quantity), 0);
+                let discount_amount = 0;
+                let final_amount = total_amount;
+                let promotion_id = null;
+
+                // Apply coupon if provided
+                const processCoupon = (callback) => {
+                    if (!promo_code) {
+                        return callback();
+                    }
+
+                    const couponQuery = `
+                        SELECT cc.coupon_id, cc.status, p.*
+                        FROM Customer_Coupons cc
+                        JOIN Promotions p ON cc.promotion_id = p.promotion_id
+                        WHERE cc.customer_id = ? AND p.promo_code = ? AND cc.status = 'available'
+                        AND p.status = 'active' AND p.start_date <= datetime('now') AND p.end_date >= datetime('now')
+                    `;
+
+                    db.get(couponQuery, [customer_id, promo_code], (err, coupon) => {
+                        if (err) return callback(err);
+
+                        if (coupon && total_amount >= coupon.min_order_amount) {
+                            promotion_id = coupon.promotion_id;
+                            discount_amount = calculateDiscountAmount(coupon, total_amount);
+                            final_amount = Math.max(0, total_amount - discount_amount);
+
+                            // Mark coupon as used
+                            db.run(`UPDATE Customer_Coupons SET status = 'used' WHERE coupon_id = ?`,
+                                [coupon.coupon_id], callback);
+                        } else {
+                            callback();
+                        }
+                    });
+                };
+
+                processCoupon((couponErr) => {
+                    if (couponErr) {
+                        db.run("ROLLBACK");
+                        return res.status(500).json({
+                            success: false,
+                            error: 'เกิดข้อผิดพลาดในการประมวลผลคูปอง'
+                        });
+                    }
+
+                    // Create order
+                    const orderQuery = `
+                        INSERT INTO Orders (customer_id, total_amount, discount_amount, final_amount, 
+                                           promotion_id, promo_code, delivery_address, order_status, 
+                                           payment_status, notes)
+                        VALUES (?, ?, ?, ?, ?, ?, ?, 'pending', 'pending', ?)
+                    `;
+
+                    db.run(orderQuery, [
+                        customer_id,
+                        total_amount,
+                        discount_amount,
+                        final_amount,
+                        promotion_id,
+                        promo_code,
+                        delivery_address,
+                        notes
+                    ], function (err) {
+                        if (err) {
+                            db.run("ROLLBACK");
+                            return res.status(500).json({
+                                success: false,
+                                error: err.message
+                            });
+                        }
+
+                        const order_id = this.lastID;
+
+                        // Move cart items to order items
+                        const moveItemsPromises = cartItems.map(item => {
+                            return new Promise((resolve, reject) => {
+                                db.run(`
+                                    INSERT INTO Order_Items (order_id, product_id, quantity, price)
+                                    VALUES (?, ?, ?, ?)
+                                `, [order_id, item.product_id, item.quantity, item.price], (err) => {
+                                    if (err) reject(err);
+                                    else resolve();
+                                });
+                            });
+                        });
+
+                        Promise.all(moveItemsPromises).then(() => {
+                            // Create payment record
+                            db.run(`
+                                INSERT INTO Payments (order_id, method, amount, status)
+                                VALUES (?, ?, ?, 'pending')
+                            `, [order_id, payment_method, final_amount], function (err) {
+                                if (err) {
+                                    db.run("ROLLBACK");
+                                    return res.status(500).json({
+                                        success: false,
+                                        error: err.message
+                                    });
+                                }
+
+                                const payment_id = this.lastID;
+
+                                // ** IMPORTANT: Clear the cart after successful order creation **
+                                db.run(`DELETE FROM Cart_Items WHERE cart_id = ?`, [cart.cart_id], (err) => {
+                                    if (err) {
+                                        db.run("ROLLBACK");
+                                        return res.status(500).json({
+                                            success: false,
+                                            error: 'ไม่สามารถล้างตะกร้าสินค้าได้'
+                                        });
+                                    }
+
+                                    // Record promotion usage if applicable
+                                    if (promotion_id) {
+                                        db.run(`
+                                            INSERT INTO Promotion_Usage (promotion_id, customer_id, order_id, discount_amount)
+                                            VALUES (?, ?, ?, ?)
+                                        `, [promotion_id, customer_id, order_id, discount_amount], (err) => {
+                                            if (err) console.error('Promotion usage recording failed:', err);
+                                        });
+                                    }
+
+                                    // Create notification for new order
+                                    db.run(`
+                                        INSERT INTO Notifications (user_id, type, message, status)
+                                        VALUES (?, 'order', ?, 'unread')
+                                    `, [customer_id, `คำสั่งซื้อ #${order_id} ได้รับการยืนยันแล้ว`], (err) => {
+                                        if (err) console.error('Notification creation failed:', err);
+                                    });
+
+                                    // Log the order creation
+                                    db.run(`
+                                        INSERT INTO System_Logs (user_id, action, entity_type, entity_id, details)
+                                        VALUES (?, 'create', 'order', ?, ?)
+                                    `, [customer_id, order_id, JSON.stringify({
+                                        total_amount,
+                                        final_amount,
+                                        items_count: cartItems.length,
+                                        promo_code
+                                    })]);
+
+                                    db.run("COMMIT");
+
+                                    res.json({
+                                        success: true,
+                                        order_id: order_id,
+                                        payment_id: payment_id,
+                                        message: 'สร้างคำสั่งซื้อสำเร็จ',
+                                        total_amount,
+                                        final_amount,
+                                        discount_amount,
+                                        redirect: `/orders/${order_id}/pay`
+                                    });
+                                });
+                            });
+
+                        }).catch((err) => {
+                            db.run("ROLLBACK");
+                            res.status(500).json({
+                                success: false,
+                                error: 'ไม่สามารถย้ายสินค้าจากตะกร้าไปยังคำสั่งซื้อได้'
+                            });
+                        });
+                    });
+                });
+            });
+        });
+    });
+});
+
+app.get('/api/orders', authenticateUser, (req, res) => {
+    const customer_id = req.user.customer_id;
+
+    const query = `
+    SELECT o.*, p.method as payment_method, p.status as payment_status,
+           e.name as employee_name
+    FROM Orders o
+    LEFT JOIN Payments p ON o.order_id = p.order_id
+    LEFT JOIN Employees e ON o.employee_id = e.employee_id
+    WHERE o.customer_id = ?
+    ORDER BY o.created_at DESC
+  `;
+
+    db.all(query, [customer_id], (err, orders) => {
+        if (err) {
+            return res.status(500).json({
+                success: false,
                 error: err.message
             });
+        }
+
+        if (!orders || orders.length === 0) {
+            return res.json({
+                success: true,
+                orders: []
+            });
+        }
+
+        // Get order items for each order
+        const orderIds = orders.map(o => o.order_id);
+        const itemsQuery = `
+      SELECT oi.*, p.name as product_name, p.image_url
+      FROM Order_Items oi
+      JOIN Products p ON oi.product_id = p.product_id
+      WHERE oi.order_id IN (${orderIds.map(() => '?').join(',')})
+    `;
+
+        db.all(itemsQuery, orderIds, (err, items) => {
+            if (err) {
+                return res.status(500).json({
+                    success: false,
+                    error: err.message
+                });
+            }
+
+            // Get reviews for completed orders
+            const reviewsQuery = `
+        SELECT r.*, p.name as product_name
+        FROM Reviews r
+        JOIN Products p ON r.product_id = p.product_id
+        JOIN Order_Items oi ON r.product_id = oi.product_id
+        WHERE r.customer_id = ? AND oi.order_id IN (${orderIds.map(() => '?').join(',')})
+        ORDER BY r.created_at DESC
+      `;
+
+            db.all(reviewsQuery, [customer_id, ...orderIds], (err, reviews) => {
+                if (err) {
+                    console.log('Reviews query error:', err);
+                    // Continue without reviews if there's an error
+                }
+
+                const ordersWithItems = orders.map(order => {
+                    const orderItems = items.filter(item => item.order_id === order.order_id);
+                    const orderReviews = reviews ? reviews.filter(review =>
+                        orderItems.some(item => item.product_id === review.product_id)
+                    ) : [];
+
+                    return {
+                        ...order,
+                        items: orderItems,
+                        reviews: orderReviews
+                    };
+                });
+
+                res.json({
+                    success: true,
+                    orders: ordersWithItems
+                });
+            });
+        });
+    });
+});
+
+app.get('/orders/:id/pay', authenticateUser, (req, res) => {
+    res.render('payment', {
+        orderId: req.params.id
+    });
+});
+
+app.post('/api/payments', authenticateUser, (req, res) => {
+    const {
+        order_id,
+        method,
+        amount
+    } = req.body;
+
+    db.run(
+        `UPDATE Payments SET method = ?, amount = ?, status = ? WHERE order_id = ?`,
+        [method, amount, "success", order_id],
+        function (err) {
+            if (err) return res.status(500).json({
+                success: false,
+                error: err.message
+            });
+            db.run(`UPDATE Orders SET payment_status = 'paid', order_status = 'confirmed' WHERE order_id = ?`, [order_id]);
             res.json({
                 success: true,
-                order_id: this.lastID
+                message: "บันทึกการชำระเงินสำเร็จ"
             });
         }
     );
 });
 
-app.post('/api/reviews', authenticateToken, (req, res) => {
+app.get('/api/orders/:id', authenticateUser, (req, res) => {
+    const {
+        id
+    } = req.params;
+    const customer_id = req.user.customer_id;
+
+    const query = `
+    SELECT o.*, p.method as payment_method, p.status as payment_status, p.amount as payment_amount,
+           e.name as employee_name, e.phone as employee_phone
+    FROM Orders o
+    LEFT JOIN Payments p ON o.order_id = p.order_id
+    LEFT JOIN Employees e ON o.employee_id = e.employee_id
+    WHERE o.order_id = ? AND o.customer_id = ?
+  `;
+
+    db.get(query, [id, customer_id], (err, order) => {
+        if (err) {
+            return res.status(500).json({
+                success: false,
+                error: err.message
+            });
+        }
+
+        if (!order) {
+            return res.status(404).json({
+                success: false,
+                error: 'ไม่พบคำสั่งซื้อ'
+            });
+        }
+
+        // Get order items
+        const itemsQuery = `
+      SELECT oi.*, p.name as product_name, p.image_url
+      FROM Order_Items oi
+      JOIN Products p ON oi.product_id = p.product_id
+      WHERE oi.order_id = ?
+    `;
+
+        db.all(itemsQuery, [id], (err, items) => {
+            if (err) {
+                return res.status(500).json({
+                    success: false,
+                    error: err.message
+                });
+            }
+
+            res.json({
+                success: true,
+                order: {
+                    ...order,
+                    items
+                }
+            });
+        });
+    });
+});
+
+// Add to server.js - Notification system endpoints
+
+// Get user notifications
+app.get('/api/notifications', authenticateUser, (req, res) => {
+    const customer_id = req.user.customer_id;
+    const {
+        limit = 10, offset = 0
+    } = req.query;
+
+    const query = `
+        SELECT * FROM Notifications 
+        WHERE user_id = ? 
+        ORDER BY created_at DESC 
+        LIMIT ? OFFSET ?
+    `;
+
+    db.all(query, [customer_id, parseInt(limit), parseInt(offset)], (err, notifications) => {
+        if (err) {
+            return res.status(500).json({
+                success: false,
+                error: err.message
+            });
+        }
+
+        // Get unread count
+        db.get(`SELECT COUNT(*) as unread_count FROM Notifications WHERE user_id = ? AND status = 'unread'`,
+            [customer_id], (err, countResult) => {
+                if (err) {
+                    return res.status(500).json({
+                        success: false,
+                        error: err.message
+                    });
+                }
+
+                res.json({
+                    success: true,
+                    notifications,
+                    unread_count: countResult.unread_count || 0
+                });
+            });
+    });
+});
+
+// Mark notifications as read
+app.put('/api/notifications/read', authenticateUser, (req, res) => {
+    const customer_id = req.user.customer_id;
+    const {
+        notification_ids
+    } = req.body;
+
+    if (!notification_ids || !Array.isArray(notification_ids)) {
+        return res.status(400).json({
+            success: false,
+            error: 'กรุณาระบุรายการแจ้งเตือนที่ต้องการอ่าน'
+        });
+    }
+
+    const placeholders = notification_ids.map(() => '?').join(',');
+    const query = `
+        UPDATE Notifications 
+        SET status = 'read' 
+        WHERE notification_id IN (${placeholders}) AND user_id = ?
+    `;
+
+    db.run(query, [...notification_ids, customer_id], function (err) {
+        if (err) {
+            return res.status(500).json({
+                success: false,
+                error: err.message
+            });
+        }
+
+        res.json({
+            success: true,
+            message: 'อ่านแจ้งเตือนแล้ว',
+            updated_count: this.changes
+        });
+    });
+});
+
+// Enhanced order status update with notifications
+app.put('/api/orders/:id/status', authenticateUser, (req, res) => {
+    const {
+        id
+    } = req.params;
+    const {
+        status
+    } = req.body;
+    const customer_id = req.user.customer_id;
+
+    const validStatuses = ['pending', 'accepted', 'cooking', 'delivering', 'completed', 'cancelled'];
+    if (!validStatuses.includes(status)) {
+        return res.status(400).json({
+            success: false,
+            error: 'สถานะไม่ถูกต้อง'
+        });
+    }
+
+    // Verify order belongs to user
+    db.get(`SELECT * FROM Orders WHERE order_id = ? AND customer_id = ?`, [id, customer_id], (err, order) => {
+        if (err) {
+            return res.status(500).json({
+                success: false,
+                error: err.message
+            });
+        }
+
+        if (!order) {
+            return res.status(404).json({
+                success: false,
+                error: 'ไม่พบคำสั่งซื้อ'
+            });
+        }
+
+        // Update order status
+        db.run(`
+            UPDATE Orders 
+            SET order_status = ?, updated_at = CURRENT_TIMESTAMP 
+            WHERE order_id = ?
+        `, [status, id], function (err) {
+            if (err) {
+                return res.status(500).json({
+                    success: false,
+                    error: err.message
+                });
+            }
+
+            // Create notification for status update
+            const statusMessages = {
+                'accepted': 'คำสั่งซื้อของคุณได้รับการยืนยันแล้ว',
+                'cooking': 'กำลังเตรียมอาหารของคุณ',
+                'delivering': 'คำสั่งซื้อของคุณกำลังจัดส่ง',
+                'completed': 'คำสั่งซื้อของคุณเสร็จสิ้นแล้ว',
+                'cancelled': 'คำสั่งซื้อของคุณถูกยกเลิก'
+            };
+
+            const notificationMessage = statusMessages[status] || `สถานะคำสั่งซื้อ #${id} เปลี่ยนเป็น ${status}`;
+
+            db.run(`
+                INSERT INTO Notifications (user_id, type, message, status)
+                VALUES (?, 'order', ?, 'unread')
+            `, [customer_id, notificationMessage], (notifErr) => {
+                if (notifErr) console.error('Notification creation failed:', notifErr);
+            });
+
+            res.json({
+                success: true,
+                message: 'อัปเดตสถานะสำเร็จ',
+                status: status
+            });
+        });
+    });
+});
+
+// Server-Sent Events for real-time notifications
+app.get('/api/notifications/stream', authenticateUser, (req, res) => {
+    const customer_id = req.user.customer_id;
+
+    // Set headers for Server-Sent Events
+    res.writeHead(200, {
+        'Content-Type': 'text/event-stream',
+        'Cache-Control': 'no-cache',
+        'Connection': 'keep-alive',
+        'Access-Control-Allow-Origin': '*',
+        'Access-Control-Allow-Headers': 'Cache-Control'
+    });
+
+    // Send initial connection message
+    res.write(`data: ${JSON.stringify({ type: 'connected', message: 'Connected to notifications' })}\n\n`);
+
+    // Set up polling for new notifications
+    const pollInterval = setInterval(() => {
+        db.get(`
+            SELECT * FROM Notifications 
+            WHERE user_id = ? AND status = 'unread'
+            ORDER BY created_at DESC 
+            LIMIT 1
+        `, [customer_id], (err, notification) => {
+            if (!err && notification) {
+                // Send new notification to client
+                res.write(`data: ${JSON.stringify({
+                    type: 'notification',
+                    data: notification
+                })}\n\n`);
+            }
+        });
+    }, 5000); // Poll every 5 seconds
+
+    // Clean up on client disconnect
+    req.on('close', () => {
+        clearInterval(pollInterval);
+        res.end();
+    });
+
+    req.on('end', () => {
+        clearInterval(pollInterval);
+        res.end();
+    });
+});
+
+// Webhook for order status updates (for admin/staff use)
+app.post('/api/orders/:id/webhook/status', authenticateAdmin, (req, res) => {
+    const {
+        id
+    } = req.params;
+    const {
+        status,
+        employee_id,
+        notes
+    } = req.body;
+
+    const validStatuses = ['pending', 'accepted', 'cooking', 'delivering', 'completed', 'cancelled'];
+    if (!validStatuses.includes(status)) {
+        return res.status(400).json({
+            success: false,
+            error: 'Invalid status'
+        });
+    }
+
+    // Get order details first
+    db.get(`SELECT * FROM Orders WHERE order_id = ?`, [id], (err, order) => {
+        if (err) {
+            return res.status(500).json({
+                success: false,
+                error: err.message
+            });
+        }
+
+        if (!order) {
+            return res.status(404).json({
+                success: false,
+                error: 'Order not found'
+            });
+        }
+
+        // Update order
+        const updateQuery = `
+            UPDATE Orders 
+            SET order_status = ?, employee_id = ?, updated_at = CURRENT_TIMESTAMP
+            WHERE order_id = ?
+        `;
+
+        db.run(updateQuery, [status, employee_id, id], function (err) {
+            if (err) {
+                return res.status(500).json({
+                    success: false,
+                    error: err.message
+                });
+            }
+
+            // Add notes if provided
+            if (notes) {
+                db.run(`
+                    INSERT INTO System_Logs (user_id, action, entity_type, entity_id, details)
+                    VALUES (?, 'update', 'order', ?, ?)
+                `, [req.user.customer_id, id, JSON.stringify({
+                    status,
+                    notes,
+                    employee_id
+                })]);
+            }
+
+            // Create notification for customer
+            const statusMessages = {
+                'accepted': 'คำสั่งซื้อของคุณได้รับการยืนยันแล้ว เรากำลังเตรียมอาหารให้คุณ',
+                'cooking': 'เชฟกำลังปรุงอาหารของคุณด้วยความพิถีพิถัน',
+                'delivering': 'อาหารของคุณกำลังเดินทางไปหาคุณ',
+                'completed': 'คำสั่งซื้อของคุณเสร็จสิ้นแล้ว ขอบคุณที่ใช้บริการ',
+                'cancelled': 'ขออภัย คำสั่งซื้อของคุณถูกยกเลิก'
+            };
+
+            const message = statusMessages[status] || `สถานะคำสั่งซื้อ #${id} อัปเดตแล้ว`;
+
+            db.run(`
+                INSERT INTO Notifications (user_id, type, message, status)
+                VALUES (?, 'order', ?, 'unread')
+            `, [order.customer_id, message]);
+
+            res.json({
+                success: true,
+                message: 'Order status updated successfully',
+                order: {
+                    order_id: id,
+                    status: status,
+                    updated_at: new Date().toISOString()
+                }
+            });
+        });
+    });
+});
+
+// Client-side JavaScript for orders.ejs (add to the script section)
+const NotificationManager = {
+    eventSource: null,
+
+    init() {
+        this.connectToNotifications();
+        this.showNotificationPermission();
+    },
+
+    connectToNotifications() {
+        if (this.eventSource) {
+            this.eventSource.close();
+        }
+
+        this.eventSource = new EventSource('/api/notifications/stream');
+
+        this.eventSource.onmessage = (event) => {
+            const data = JSON.parse(event.data);
+
+            if (data.type === 'notification') {
+                this.handleNotification(data.data);
+            } else if (data.type === 'connected') {
+                console.log('Connected to notification stream');
+            }
+        };
+
+        this.eventSource.onerror = (error) => {
+            console.error('Notification stream error:', error);
+            // Reconnect after 5 seconds
+            setTimeout(() => {
+                this.connectToNotifications();
+            }, 5000);
+        };
+    },
+
+    handleNotification(notification) {
+        // Show browser notification if permitted
+        if (Notification.permission === 'granted') {
+            new Notification('T&KFood', {
+                body: notification.message,
+                icon: '/images/logo.png',
+                badge: '/images/logo.png'
+            });
+        }
+
+        // Show in-page notification
+        this.showInPageNotification(notification);
+
+        // Reload orders if it's an order-related notification
+        if (notification.type === 'order' && typeof orderTracker !== 'undefined') {
+            setTimeout(() => {
+                orderTracker.loadOrders();
+            }, 1000);
+        }
+    },
+
+    showInPageNotification(notification) {
+        const notificationElement = document.createElement('div');
+        notificationElement.className = 'notification-toast';
+        notificationElement.innerHTML = `
+            <div class="notification-content">
+                <strong>แจ้งเตือน</strong>
+                <p>${notification.message}</p>
+            </div>
+            <button class="notification-close">&times;</button>
+        `;
+
+        // Add CSS for notification toast
+        if (!document.getElementById('notification-styles')) {
+            const style = document.createElement('style');
+            style.id = 'notification-styles';
+            style.textContent = `
+                .notification-toast {
+                    position: fixed;
+                    top: 20px;
+                    right: 20px;
+                    background: white;
+                    border: 1px solid #e5e7eb;
+                    border-radius: 12px;
+                    padding: 16px;
+                    box-shadow: 0 10px 25px rgba(0, 0, 0, 0.15);
+                    z-index: 10000;
+                    max-width: 350px;
+                    animation: slideInRight 0.3s ease;
+                }
+                
+                .notification-toast .notification-content {
+                    margin-bottom: 8px;
+                }
+                
+                .notification-toast strong {
+                    color: var(--color-primary);
+                    display: block;
+                    margin-bottom: 4px;
+                }
+                
+                .notification-toast p {
+                    margin: 0;
+                    color: #6b7280;
+                    font-size: 0.9rem;
+                }
+                
+                .notification-close {
+                    position: absolute;
+                    top: 8px;
+                    right: 8px;
+                    background: none;
+                    border: none;
+                    font-size: 18px;
+                    cursor: pointer;
+                    color: #9ca3af;
+                }
+                
+                .notification-close:hover {
+                    color: #374151;
+                }
+                
+                @keyframes slideInRight {
+                    from {
+                        transform: translateX(100%);
+                        opacity: 0;
+                    }
+                    to {
+                        transform: translateX(0);
+                        opacity: 1;
+                    }
+                }
+                
+                @keyframes slideOutRight {
+                    from {
+                        transform: translateX(0);
+                        opacity: 1;
+                    }
+                    to {
+                        transform: translateX(100%);
+                        opacity: 0;
+                    }
+                }
+            `;
+            document.head.appendChild(style);
+        }
+
+        document.body.appendChild(notificationElement);
+
+        // Handle close button
+        notificationElement.querySelector('.notification-close').onclick = () => {
+            notificationElement.style.animation = 'slideOutRight 0.3s ease';
+            setTimeout(() => {
+                if (notificationElement.parentNode) {
+                    notificationElement.parentNode.removeChild(notificationElement);
+                }
+            }, 300);
+        };
+
+        // Auto remove after 5 seconds
+        setTimeout(() => {
+            if (notificationElement.parentNode) {
+                notificationElement.style.animation = 'slideOutRight 0.3s ease';
+                setTimeout(() => {
+                    if (notificationElement.parentNode) {
+                        notificationElement.parentNode.removeChild(notificationElement);
+                    }
+                }, 300);
+            }
+        }, 5000);
+    },
+
+    showNotificationPermission() {
+        if ('Notification' in window && Notification.permission === 'default') {
+            // Show a subtle prompt
+            setTimeout(() => {
+                if (confirm('อนุญาตให้แสดงการแจ้งเตือนเมื่อสถานะคำสั่งซื้อเปลี่ยนแปลงหรือไม่?')) {
+                    Notification.requestPermission();
+                }
+            }, 3000);
+        }
+    },
+
+    disconnect() {
+        if (this.eventSource) {
+            this.eventSource.close();
+            this.eventSource = null;
+        }
+    }
+};
+
+app.get('/api/orders/:id/status', authenticateUser, (req, res) => {
+    const {
+        id
+    } = req.params;
+    const customer_id = req.user.customer_id;
+
+    const query = `
+    SELECT order_status, updated_at, payment_status
+    FROM Orders 
+    WHERE order_id = ? AND customer_id = ?
+  `;
+
+    db.get(query, [id, customer_id], (err, order) => {
+        if (err) {
+            return res.status(500).json({
+                success: false,
+                error: err.message
+            });
+        }
+
+        if (!order) {
+            return res.status(404).json({
+                success: false,
+                error: 'ไม่พบคำสั่งซื้อ'
+            });
+        }
+
+        res.json({
+            success: true,
+            status: order.order_status,
+            payment_status: order.payment_status,
+            updated_at: order.updated_at
+        });
+    });
+});
+
+app.post('/api/payments/:orderId/pay', authenticateUser, (req, res) => {
+    const {
+        orderId
+    } = req.params;
+    const {
+        method,
+        amount
+    } = req.body;
+    const customer_id = req.user.customer_id;
+
+    // Verify order belongs to user
+    db.get(`SELECT * FROM Orders WHERE order_id = ? AND customer_id = ?`, [orderId, customer_id], (err, order) => {
+        if (err) {
+            return res.status(500).json({
+                success: false,
+                error: err.message
+            });
+        }
+
+        if (!order) {
+            return res.status(404).json({
+                success: false,
+                error: 'ไม่พบคำสั่งซื้อ'
+            });
+        }
+
+        if (order.payment_status === 'paid') {
+            return res.status(400).json({
+                success: false,
+                error: 'ชำระเงินแล้ว'
+            });
+        }
+
+        // Update payment
+        db.run(`
+      UPDATE Payments 
+      SET method = ?, amount = ?, status = 'success', paid_at = CURRENT_TIMESTAMP
+      WHERE order_id = ?
+    `, [method, amount, orderId], function (err) {
+            if (err) {
+                return res.status(500).json({
+                    success: false,
+                    error: err.message
+                });
+            }
+
+            // Update order payment status
+            db.run(`
+        UPDATE Orders 
+        SET payment_status = 'paid', order_status = 'accepted', updated_at = CURRENT_TIMESTAMP
+        WHERE order_id = ?
+      `, [orderId], (err) => {
+                if (err) {
+                    return res.status(500).json({
+                        success: false,
+                        error: err.message
+                    });
+                }
+
+                res.json({
+                    success: true,
+                    message: 'ชำระเงินสำเร็จ',
+                    order_id: orderId
+                });
+            });
+        });
+    });
+});
+
+// Helper function to calculate discount
+function calculateDiscountAmount(coupon, orderAmount) {
+    let discountAmount = 0;
+
+    switch (coupon.type) {
+        case 'percentage':
+            discountAmount = (orderAmount * coupon.discount_value) / 100;
+            if (coupon.max_discount_amount && discountAmount > coupon.max_discount_amount) {
+                discountAmount = coupon.max_discount_amount;
+            }
+            break;
+        case 'fixed_amount':
+            discountAmount = coupon.discount_value;
+            break;
+        case 'free_shipping':
+            discountAmount = 30;
+            break;
+        default:
+            discountAmount = 0;
+    }
+
+    return Math.round(discountAmount * 100) / 100;
+}
+
+// Add missing columns to Orders table if needed
+db.run(`
+  ALTER TABLE Orders ADD COLUMN employee_id INTEGER;
+`, (err) => {
+    if (err && !err.message.includes('duplicate column')) {
+        console.log('Note: employee_id column may already exist');
+    }
+});
+
+// Simulate order status progression (for demo purposes)
+app.post('/api/orders/:id/simulate-progress', authenticateUser, (req, res) => {
+    const {
+        id
+    } = req.params;
+    const customer_id = req.user.customer_id;
+
+    // Verify order belongs to user
+    db.get(`SELECT * FROM Orders WHERE order_id = ? AND customer_id = ?`, [id, customer_id], (err, order) => {
+        if (err || !order) {
+            return res.status(404).json({
+                success: false,
+                error: 'ไม่พบคำสั่งซื้อ'
+            });
+        }
+
+        const statuses = ['accepted', 'cooking', 'delivering', 'completed'];
+        let currentIndex = 0;
+
+        const progressStatus = () => {
+            if (currentIndex < statuses.length) {
+                const newStatus = statuses[currentIndex];
+
+                db.run(`
+          UPDATE Orders 
+          SET order_status = ?, updated_at = CURRENT_TIMESTAMP 
+          WHERE order_id = ?
+        `, [newStatus, id], (err) => {
+                    if (!err) {
+                        console.log(`Order ${id} status updated to: ${newStatus}`);
+                    }
+                });
+
+                currentIndex++;
+                if (currentIndex < statuses.length) {
+                    setTimeout(progressStatus, 5000); // 5 seconds between each status
+                }
+            }
+        };
+
+        // Start progression
+        setTimeout(progressStatus, 2000); // Start after 2 seconds
+
+        res.json({
+            success: true,
+            message: 'เริ่มจำลองการดำเนินการสั่งซื้อ'
+        });
+    });
+});
+
+// Payment page route
+app.get('/orders/:id/pay', authenticateUser, (req, res) => {
+    const {
+        id
+    } = req.params;
+    res.render('payment', {
+        title: 'ชำระเงิน',
+        orderId: id
+    });
+});
+
+// Database schema updates for better order tracking
+function updateDatabaseSchema() {
+    // Add employee_id column to Orders if not exists
+    db.run(`
+    ALTER TABLE Orders ADD COLUMN employee_id INTEGER 
+    REFERENCES Employees(employee_id);
+  `, (err) => {
+        if (err && !err.message.includes('duplicate column')) {
+            console.log('Note: employee_id column may already exist');
+        }
+    });
+
+    // Add notes column to Orders if not exists  
+    db.run(`
+    ALTER TABLE Orders ADD COLUMN notes TEXT;
+  `, (err) => {
+        if (err && !err.message.includes('duplicate column')) {
+            console.log('Note: notes column may already exist');
+        }
+    });
+
+    // Add phone column to Employees if not exists
+    db.run(`
+    ALTER TABLE Employees ADD COLUMN phone TEXT;
+  `, (err) => {
+        if (err && !err.message.includes('duplicate column')) {
+            console.log('Note: phone column may already exist');
+        }
+    });
+}
+
+updateDatabaseSchema();
+
+app.post('/api/reviews', authenticateUser, (req, res) => {
     const {
         product_id,
         rating,
@@ -2771,19 +3955,250 @@ app.post('/api/reviews', authenticateToken, (req, res) => {
     } = req.body;
     const customer_id = req.user.customer_id;
 
-    db.run(
-        `INSERT INTO Reviews (product_id, customer_id, rating, comment) VALUES (?, ?, ?, ?)`,
-        [product_id, customer_id, rating, comment],
-        function (err) {
-            if (err) return res.status(500).json({
+    // Validation
+    if (!product_id || !rating) {
+        return res.status(400).json({
+            success: false,
+            error: 'กรุณาระบุสินค้าและคะแนน'
+        });
+    }
+
+    if (rating < 1 || rating > 5) {
+        return res.status(400).json({
+            success: false,
+            error: 'คะแนนต้องอยู่ระหว่าง 1-5'
+        });
+    }
+
+    // Check if user has purchased this product
+    const purchaseQuery = `
+    SELECT DISTINCT oi.product_id 
+    FROM Order_Items oi
+    JOIN Orders o ON oi.order_id = o.order_id
+    WHERE o.customer_id = ? AND oi.product_id = ? AND o.order_status = 'completed'
+  `;
+
+    db.get(purchaseQuery, [customer_id, product_id], (err, purchase) => {
+        if (err) {
+            return res.status(500).json({
+                success: false,
                 error: err.message
             });
-            res.json({
-                success: true,
-                review_id: this.lastID
+        }
+
+        if (!purchase) {
+            return res.status(403).json({
+                success: false,
+                error: 'คุณสามารถรีวิวได้เฉพาะสินค้าที่ซื้อและได้รับแล้วเท่านั้น'
             });
         }
-    );
+
+        // Check if user already reviewed this product
+        const existingReviewQuery = `
+      SELECT review_id FROM Reviews 
+      WHERE customer_id = ? AND product_id = ?
+    `;
+
+        db.get(existingReviewQuery, [customer_id, product_id], (err, existingReview) => {
+            if (err) {
+                return res.status(500).json({
+                    success: false,
+                    error: err.message
+                });
+            }
+
+            if (existingReview) {
+                // Update existing review
+                db.run(
+                    `UPDATE Reviews SET rating = ?, comment = ?, created_at = CURRENT_TIMESTAMP WHERE review_id = ?`,
+                    [rating, comment, existingReview.review_id],
+                    function (err) {
+                        if (err) {
+                            return res.status(500).json({
+                                success: false,
+                                error: err.message
+                            });
+                        }
+                        res.json({
+                            success: true,
+                            message: 'อัปเดตรีวิวเรียบร้อยแล้ว',
+                            review_id: existingReview.review_id
+                        });
+                    }
+                );
+            } else {
+                // Create new review
+                db.run(
+                    `INSERT INTO Reviews (product_id, customer_id, rating, comment) VALUES (?, ?, ?, ?)`,
+                    [product_id, customer_id, rating, comment],
+                    function (err) {
+                        if (err) {
+                            return res.status(500).json({
+                                success: false,
+                                error: err.message
+                            });
+                        }
+                        res.json({
+                            success: true,
+                            message: 'เพิ่มรีวิวเรียบร้อยแล้ว',
+                            review_id: this.lastID
+                        });
+                    }
+                );
+            }
+        });
+    });
+});
+
+// Get reviews for a specific order
+app.get('/api/orders/:orderId/reviews', authenticateUser, (req, res) => {
+    const {
+        orderId
+    } = req.params;
+    const customer_id = req.user.customer_id;
+
+    const query = `
+    SELECT r.*, p.name as product_name, p.image_url
+    FROM Reviews r
+    JOIN Products p ON r.product_id = p.product_id
+    JOIN Order_Items oi ON r.product_id = oi.product_id
+    WHERE r.customer_id = ? AND oi.order_id = ?
+    ORDER BY r.created_at DESC
+  `;
+
+    db.all(query, [customer_id, orderId], (err, reviews) => {
+        if (err) {
+            return res.status(500).json({
+                success: false,
+                error: err.message
+            });
+        }
+
+        res.json({
+            success: true,
+            reviews
+        });
+    });
+});
+
+// Submit multiple reviews for an order
+app.post('/api/orders/:orderId/reviews', authenticateUser, (req, res) => {
+    const {
+        orderId
+    } = req.params;
+    const {
+        reviews
+    } = req.body;
+    const customer_id = req.user.customer_id;
+
+    if (!reviews || !Array.isArray(reviews)) {
+        return res.status(400).json({
+            success: false,
+            error: 'ข้อมูลรีวิวไม่ถูกต้อง'
+        });
+    }
+
+    // Verify order belongs to user and is completed
+    const orderQuery = `
+    SELECT order_id FROM Orders 
+    WHERE order_id = ? AND customer_id = ? AND order_status = 'completed'
+  `;
+
+    db.get(orderQuery, [orderId, customer_id], (err, order) => {
+        if (err) {
+            return res.status(500).json({
+                success: false,
+                error: err.message
+            });
+        }
+
+        if (!order) {
+            return res.status(404).json({
+                success: false,
+                error: 'ไม่พบคำสั่งซื้อหรือคำสั่งซื้อยังไม่เสร็จสิ้น'
+            });
+        }
+
+        // Process all reviews in a transaction
+        db.serialize(() => {
+            db.run("BEGIN TRANSACTION");
+
+            let completedReviews = 0;
+            let hasError = false;
+
+            reviews.forEach((review, index) => {
+                const {
+                    product_id,
+                    rating,
+                    comment
+                } = review;
+
+                if (!product_id || !rating || rating < 1 || rating > 5) {
+                    hasError = true;
+                    return;
+                }
+
+                // Check if review already exists
+                db.get(
+                    `SELECT review_id FROM Reviews WHERE customer_id = ? AND product_id = ?`,
+                    [customer_id, product_id],
+                    (err, existing) => {
+                        if (err) {
+                            hasError = true;
+                            return;
+                        }
+
+                        if (existing) {
+                            // Update existing review
+                            db.run(
+                                `UPDATE Reviews SET rating = ?, comment = ?, created_at = CURRENT_TIMESTAMP WHERE review_id = ?`,
+                                [rating, comment || '', existing.review_id],
+                                (err) => {
+                                    if (err) hasError = true;
+                                    completedReviews++;
+
+                                    if (completedReviews === reviews.length) {
+                                        finalizeTransaction();
+                                    }
+                                }
+                            );
+                        } else {
+                            // Insert new review
+                            db.run(
+                                `INSERT INTO Reviews (product_id, customer_id, rating, comment) VALUES (?, ?, ?, ?)`,
+                                [product_id, customer_id, rating, comment || ''],
+                                (err) => {
+                                    if (err) hasError = true;
+                                    completedReviews++;
+
+                                    if (completedReviews === reviews.length) {
+                                        finalizeTransaction();
+                                    }
+                                }
+                            );
+                        }
+                    }
+                );
+            });
+
+            function finalizeTransaction() {
+                if (hasError) {
+                    db.run("ROLLBACK");
+                    res.status(500).json({
+                        success: false,
+                        error: 'เกิดข้อผิดพลาดในการบันทึกรีวิว'
+                    });
+                } else {
+                    db.run("COMMIT");
+                    res.json({
+                        success: true,
+                        message: 'บันทึกรีวิวทั้งหมดเรียบร้อยแล้ว',
+                        count: reviews.length
+                    });
+                }
+            }
+        });
+    });
 });
 
 app.use((err, req, res, next) => {
@@ -2814,48 +4229,6 @@ app.use((req, res) => {
         });
     }
 });
-
-function createSystemLogsTable() {
-    db.run(`
-        CREATE TABLE IF NOT EXISTS System_Logs (
-            log_id INTEGER PRIMARY KEY AUTOINCREMENT,
-            user_id INTEGER,
-            action TEXT NOT NULL,
-            entity_type TEXT NOT NULL,
-            entity_id INTEGER,
-            details TEXT,
-            ip_address TEXT,
-            created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-            FOREIGN KEY (user_id) REFERENCES Users(customer_id)
-        )
-    `);
-}
-
-// const logAdminAction = (action, entityType, entityId = null, details = null) => {
-//     return (req, res, next) => {
-//         const originalSend = res.send;
-//         res.send = function(data) {
-//             if (res.statusCode >= 200 && res.statusCode < 300) {
-//                 const logData = {
-//                     user_id: req.user.customer_id,
-//                     action: action,
-//                     entity_type: entityType,
-//                     entity_id: entityId,
-//                     details: details || JSON.stringify(req.body),
-//                     ip_address: req.ip || req.connection.remoteAddress
-//                 };
-
-//                 db.run(`
-//                     INSERT INTO System_Logs (user_id, action, entity_type, entity_id, details, ip_address)
-//                     VALUES (?, ?, ?, ?, ?, ?)
-//                 `, [logData.user_id, logData.action, logData.entity_type, 
-//                     logData.entity_id, logData.details, logData.ip_address]);
-//             }
-//             originalSend.call(this, data);
-//         };
-//         next();
-//     };
-// };
 
 app.listen(PORT, () => {
     console.log(`🚀 Restaurant Server running on port ${PORT}`);

@@ -37,7 +37,7 @@
                             width="24px"></button>
                     <div id="dropdownMenu" class="dropdown-content hidden">
                         <a href="/profile">แก้ไขข้อมูล</a>
-                        <a href="/orders">ประวัติคำสั่งซื้อ</a>
+                        <a href="/orders">คำสั่งซื้อ</a>
                         <a href="/logout" class="logout">ออกจากระบบ</a>
                     </div>
                 </div>
@@ -154,7 +154,6 @@
     <script src="/js/animation.js"></script>
     <script src="/js/main.js"></script>
     <script>
-
         document.addEventListener('DOMContentLoaded', function () {
             if (isLoggedIn) {
                 updateCartCount();
@@ -423,24 +422,20 @@
             });
         });
 
-        const faders = document.querySelectorAll('#productList .fade-slide');
-
-        const observer = new IntersectionObserver(entries => {
+        const observer2 = new IntersectionObserver(entries => {
             entries.forEach(entry => {
                 if (entry.isIntersecting) {
-                    faders.forEach((el, index) => {
-                        setTimeout(() => {
-                            el.classList.add('show');
-                        }, index * 150);
-                    });
-                    observer.unobserve(entry.target);
+                productFaders.forEach((el, index) => {
+                    setTimeout(() => {
+                    el.classList.add('show');
+                    }, index * 150);
+                });
+                observer2.unobserve(entry.target);
                 }
             });
-        }, {
-            threshold: 0.2
-        });
+        }, { threshold: 0.2 });
 
-        observer.observe(document.querySelector('#productList'));
+        productFaders.forEach(el => observer2.observe(el));
     </script>
 </body>
 

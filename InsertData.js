@@ -70,11 +70,8 @@ const products = [
 ];
 
 const promotions = [
-  ['ส่วนลด 20% สำหรับลูกค้าใหม่', 'ลด 20% สำหรับการสั่งซื้อครั้งแรก', 'percentage', 20, null, null, 200, 100, 100, 1, '2024-01-01 00:00:00', '2024-12-31 23:59:59', 'active', 'NEW20'],
-  ['ลด 50 บาท เมื่อซื้อครบ 300', 'ลดทันที 50 บาท เมื่อสั่งอาหารครบ 300 บาท', 'fixed_amount', 50, null, null, 300, null, null, null, '2024-01-01 00:00:00', '2024-12-31 23:59:59', 'active', 'SAVE50'],
-  ['ซื้อ 2 แถม 1 เครื่องดื่ม', 'ซื้อเครื่องดื่ม 2 แก้ว แถมฟรี 1 แก้ว', 'buy_x_get_y', null, 2, 1, 0, null, null, null, '2024-01-01 00:00:00', '2024-12-31 23:59:59', 'active', 'DRINK321'],
-  ['จัดส่งฟรี', 'ฟรีค่าจัดส่งสำหรับทุกออร์เดอร์', 'free_shipping', 30, null, null, 0, null, null, null, '2024-01-01 00:00:00', '2024-12-31 23:59:59', 'active', 'FREESHIP'],
-  ['ส่วนลดของหวาน 15%', 'ส่วนลด 15% สำหรับของหวานทุกชนิด', 'category_discount', 15, null, null, 0, 50, null, null, '2024-01-01 00:00:00', '2024-12-31 23:59:59', 'active', 'SWEET15']
+  ['ส่วนลด 20%', 'ลด 20% สำหรับการสั่งซื้อครั้งแรก', 'percentage', 20, null, null, 200, 100, 100, 1, 'NEW20'],
+  ['ลด 50 บาท', 'ลดทันที 50 บาท เมื่อสั่งอาหารครบ 300 บาท', 'fixed_amount', 50, null, null, 300, null, null, null, 'SAVE50']
 ];
 
 function insertCategories() {
@@ -93,85 +90,26 @@ function insertProducts() {
 
 function insertPromotions() {
   const stmt = db.prepare(`
-    INSERT OR IGNORE INTO Promotions 
+    INSERT OR REPLACE INTO Promotions 
     (name, description, type, discount_value, buy_quantity, get_quantity, min_order_amount, max_discount_amount, usage_limit, usage_per_customer, start_date, end_date, status, promo_code) 
-    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, datetime('now'), datetime('now', '+1 year'), 'active', ?)
   `);
   promotions.forEach(promo => stmt.run(promo));
   stmt.finalize();
 
-  // Link category discount promotion to desserts category
   db.run(`INSERT OR IGNORE INTO Promotion_Categories (promotion_id, category_id) VALUES (5, 7)`);
   console.log("✅ Promotions inserted.");
 }
 
-function insertSampleCustomerCoupons() {
-  // First, check if there are any users in the database
-  db.get("SELECT customer_id FROM Users LIMIT 1", (err, user) => {
-    if (err) {
-      console.error("Error checking for users:", err);
-      return;
-    }
-    
-    if (!user) {
-      console.log("⚠️  No users found - skipping sample coupon assignment");
-      console.log("   Create some users first, then run this script again");
-      return;
-    }
-    
-    // Get all users to distribute coupons
-    db.all("SELECT customer_id FROM Users", (err, users) => {
-      if (err) {
-        console.error("Error fetching users:", err);
-        return;
-      }
-      
-      const stmt = db.prepare(`
-        INSERT OR IGNORE INTO Customer_Coupons 
-        (customer_id, promotion_id, status, expires_at) 
-        VALUES (?, ?, 'available', '2024-12-31 23:59:59')
-      `);
-      
-      // Give some sample coupons to users
-      users.forEach((user, index) => {
-        // Give different combinations of coupons to different users
-        switch (index % 3) {
-          case 0:
-            // First user gets NEW20, SAVE50, and FREESHIP
-            stmt.run([user.customer_id, 1]); // NEW20
-            stmt.run([user.customer_id, 2]); // SAVE50  
-            stmt.run([user.customer_id, 4]); // FREESHIP
-            break;
-          case 1:
-            // Second user gets SAVE50, DRINK321, and SWEET15
-            stmt.run([user.customer_id, 2]); // SAVE50
-            stmt.run([user.customer_id, 3]); // DRINK321
-            stmt.run([user.customer_id, 5]); // SWEET15
-            break;
-          case 2:
-            // Third user gets NEW20 and FREESHIP only
-            stmt.run([user.customer_id, 1]); // NEW20
-            stmt.run([user.customer_id, 4]); // FREESHIP
-            break;
-        }
-      });
-      
-      stmt.finalize();
-      console.log(`✅ Sample coupons assigned to ${users.length} users.`);
-    });
-  });
-}
-
 function insertAdmin() {
   const admin = {
-    name: "Administrator",
+    name: "AdminJohn",
     email: "admin@tkfood.com",
-    password: "admin123", // เดี๋ยวเราจะ hash
+    password: "admin123",
     phone: "0999999999",
     role: "admin"
   };
 
-  // Hash password ก่อน insert
   const hashedPassword = bcrypt.hashSync(admin.password, 10);
 
   const stmt = db.prepare(`
@@ -191,13 +129,11 @@ db.serialize(() => {
   insertPromotions();
   insertAdmin();
   
-  // Insert sample customer coupons after a brief delay to ensure promotions are inserted
-  setTimeout(() => {
-    insertSampleCustomerCoupons();
-  }, 100);
+  // setTimeout(() => {
+  //   insertSampleCustomerCoupons();
+  // }, 100);
 });
 
-// Close database after operations complete
 setTimeout(() => {
   db.close(() => console.log("✅ Database closed."));
 }, 500);

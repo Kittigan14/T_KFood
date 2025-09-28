@@ -9,6 +9,203 @@
   <link rel="stylesheet" href="/css/cart.css">
   <link rel="stylesheet" href="/css/notification.css">
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <style>
+    /* Additional styles for improved checkout */
+    .checkout-modal {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: rgba(0, 0, 0, 0.5);
+      display: none;
+      justify-content: center;
+      align-items: center;
+      z-index: 1000;
+    }
+
+    .checkout-content {
+      background: white;
+      padding: 30px;
+      border-radius: 16px;
+      max-width: 500px;
+      width: 90%;
+      max-height: 80vh;
+      overflow-y: auto;
+    }
+
+    .checkout-content h3 {
+      margin-bottom: 20px;
+      text-align: center;
+      color: var(--color-primary);
+    }
+
+    .form-group {
+      margin-bottom: 20px;
+    }
+
+    .form-group label {
+      display: block;
+      margin-bottom: 8px;
+      font-weight: 600;
+      color: var(--color-primary);
+    }
+
+    .form-group input,
+    .form-group select,
+    .form-group textarea {
+      width: 100%;
+      padding: 12px;
+      border: 2px solid #e5e7eb;
+      border-radius: 8px;
+      font-size: 1rem;
+      transition: border-color 0.3s ease;
+    }
+
+    .form-group input:focus,
+    .form-group select:focus,
+    .form-group textarea:focus {
+      outline: none;
+      border-color: var(--color-primary);
+    }
+
+    .form-group textarea {
+      resize: vertical;
+      min-height: 80px;
+    }
+
+    .order-summary {
+      background: #f8f9fa;
+      padding: 20px;
+      border-radius: 12px;
+      margin: 20px 0;
+    }
+
+    .order-summary h4 {
+      margin-bottom: 16px;
+      color: var(--color-primary);
+    }
+
+    .summary-line {
+      display: flex;
+      justify-content: space-between;
+      margin-bottom: 8px;
+    }
+
+    .summary-line.total {
+      font-weight: 700;
+      font-size: 1.2rem;
+      color: var(--color-primary);
+      border-top: 1px solid #e5e7eb;
+      padding-top: 8px;
+      margin-top: 16px;
+    }
+
+    .checkout-actions {
+      display: flex;
+      gap: 12px;
+      margin-top: 24px;
+    }
+
+    .btn-checkout {
+      flex: 1;
+      background: var(--color-primary);
+      color: white;
+      border: none;
+      padding: 14px;
+      border-radius: 8px;
+      font-size: 1rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.3s ease;
+    }
+
+    .btn-checkout:hover {
+      background: #374151;
+      transform: translateY(-2px);
+    }
+
+    .btn-checkout:disabled {
+      background: #9ca3af;
+      cursor: not-allowed;
+      transform: none;
+    }
+
+    .btn-cancel {
+      flex: 1;
+      background: #6b7280;
+      color: white;
+      border: none;
+      padding: 14px;
+      border-radius: 8px;
+      font-size: 1rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.3s ease;
+    }
+
+    .btn-cancel:hover {
+      background: #4b5563;
+    }
+
+    .loading-overlay {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: rgba(255, 255, 255, 0.9);
+      display: none;
+      justify-content: center;
+      align-items: center;
+      border-radius: 16px;
+    }
+
+    .loading-spinner {
+      width: 40px;
+      height: 40px;
+      border: 4px solid #e5e7eb;
+      border-top: 4px solid var(--color-primary);
+      border-radius: 50%;
+      animation: spin 1s linear infinite;
+    }
+
+    @keyframes spin {
+      0% {
+        transform: rotate(0deg);
+      }
+
+      100% {
+        transform: rotate(360deg);
+      }
+    }
+
+    .success-message {
+      text-align: center;
+      padding: 40px 20px;
+    }
+
+    .success-message h3 {
+      color: #10b981;
+      margin-bottom: 16px;
+    }
+
+    .success-message p {
+      margin-bottom: 24px;
+      color: #6b7280;
+    }
+
+    .order-id {
+      font-size: 1.2rem;
+      font-weight: 700;
+      color: var(--color-primary);
+      background: #f3f4f6;
+      padding: 8px 16px;
+      border-radius: 8px;
+      display: inline-block;
+      margin: 16px 0;
+    }
+  </style>
 </head>
 
 <body>
@@ -25,6 +222,52 @@
     <!-- Notification -->
     <div id="notification" class="notification hidden">
       <span id="notificationMessage"></span>
+    </div>
+
+    <!-- Checkout Modal -->
+    <div id="checkoutModal" class="checkout-modal">
+      <div class="checkout-content">
+        <div class="loading-overlay" id="checkoutLoading">
+          <div class="loading-spinner"></div>
+        </div>
+
+        <h3>ยืนยันคำสั่งซื้อ</h3>
+
+        <form id="checkoutForm">
+          <div class="form-group">
+            <label for="deliveryAddress">ที่อยู่สำหรับจัดส่ง *</label>
+            <textarea id="deliveryAddress" placeholder="กรุณากรอกที่อยู่สำหรับจัดส่งสินค้า" required></textarea>
+          </div>
+
+          <!-- <div class="form-group">
+            <label for="paymentMethod">วิธีการชำระเงิน *</label>
+            <select id="paymentMethod" required>
+              <option value="">-- เลือกวิธีการชำระเงิน --</option>
+              <option value="cash">เงินสดปลายทาง</option>
+              <option value="credit_card">บัตรเครดิต</option>
+              <option value="mobile_banking">โมบายแบงกิ้ง</option>
+              <option value="promptpay">พร้อมเพย์</option>
+            </select>
+          </div> -->
+
+          <div class="form-group">
+            <label for="notes">หมายเหตุ (ถ้ามี)</label>
+            <textarea id="notes" placeholder="ข้อมูลเพิ่มเติมสำหรับการจัดส่ง เช่น จุดสังเกต, เวลาที่สะดวก"></textarea>
+          </div>
+
+          <div class="order-summary">
+            <h4>สรุปคำสั่งซื้อ</h4>
+            <div id="orderSummaryContent">
+              <!-- Order summary will be populated here -->
+            </div>
+          </div>
+
+          <div class="checkout-actions">
+            <button type="button" class="btn-cancel" onclick="closeCheckoutModal()">ยกเลิก</button>
+            <button type="submit" class="btn-checkout">ยืนยันสั่งซื้อ</button>
+          </div>
+        </form>
+      </div>
     </div>
   </div>
 
@@ -75,17 +318,19 @@
 
       async loadUserCoupons() {
         try {
-          const res = await fetch('/api/coupons/available', {
+          let res = await fetch('/api/coupons/available', {
             headers: {
               'Accept': 'application/json'
-            }
+            },
+            credentials: 'include'
           });
 
-          if (res.ok) {
-            const data = await res.json();
-            if (data.success) {
-              this.userCoupons = data.coupons || [];
-            }
+          let data = await res.json();
+
+          if (res.ok && data.success && data.coupons.length > 0) {
+            this.userCoupons = data.coupons;
+          } else {
+            this.userCoupons = [];
           }
         } catch (err) {
           console.error("Error loading user coupons:", err);
@@ -157,7 +402,7 @@
           </tr>
         `).join('');
 
-        const couponOptions = this.userCoupons.map(coupon => 
+        const couponOptions = this.userCoupons.map(coupon =>
           `<option value="${coupon.promo_code}" data-coupon='${JSON.stringify(coupon)}'>${coupon.name} (${coupon.promo_code})</option>`
         ).join('');
 
@@ -217,7 +462,7 @@
 
             <div class="cart-actions">
               <a href="/" class="continue-shopping">เลือกสินค้าเพิ่ม</a>
-              <button class="checkout-btn" onclick="handleCheckout()">สั่งซื้อสินค้า</button>
+              <button class="checkout-btn" onclick="openCheckoutModal()">สั่งซื้อสินค้า</button>
             </div>
           </div>
         `;
@@ -233,11 +478,11 @@
         // Add coupon event listeners
         const applyCouponBtn = document.getElementById('applyCouponBtn');
         const removeCouponBtn = document.getElementById('removeCouponBtn');
-        
+
         if (applyCouponBtn) {
           applyCouponBtn.addEventListener('click', this.handleApplyCoupon.bind(this));
         }
-        
+
         if (removeCouponBtn) {
           removeCouponBtn.addEventListener('click', this.handleRemoveCoupon.bind(this));
         }
@@ -246,7 +491,7 @@
       async handleApplyCoupon() {
         const couponSelect = document.getElementById('couponSelect');
         const selectedOption = couponSelect.selectedOptions[0];
-        
+
         if (!selectedOption || !selectedOption.value) {
           this.showNotification('กรุณาเลือกคูปอง', 'error');
           return;
@@ -259,7 +504,7 @@
         try {
           const applyCouponBtn = document.getElementById('applyCouponBtn');
           applyCouponBtn.disabled = true;
-          applyCouponBtn.textContent = 'กำลังตรวจสอب...';
+          applyCouponBtn.textContent = 'กำลังตรวจสอบ...';
 
           const response = await fetch('/api/promotions/validate', {
             method: 'POST',
@@ -294,7 +539,7 @@
         } catch (err) {
           console.error("Error applying coupon:", err);
           this.showNotification('เกิดข้อผิดพลาดในการใช้คูปอง: ' + err.message, 'error');
-          
+
           const applyCouponBtn = document.getElementById('applyCouponBtn');
           if (applyCouponBtn) {
             applyCouponBtn.disabled = false;
@@ -314,46 +559,56 @@
         const couponSection = document.querySelector('.coupon-section');
         if (!couponSection) return;
 
-        const couponOptions = this.userCoupons.map(coupon => 
-          `<option value="${coupon.promo_code}" data-coupon='${JSON.stringify(coupon)}'>${coupon.name} (${coupon.promo_code})</option>`
+        const availableCoupons = (this.userCoupons || []).filter(coupon => coupon.status === 'available');
+
+        if (availableCoupons.length === 0) {
+          couponSection.innerHTML = `
+      <h4>คูปองส่วนลด</h4>
+      <p class="no-coupons">
+        คุณยังไม่มีคูปองที่สามารถใช้ได้ 
+        <a href="/coupons">รับคูปองที่นี่</a>
+      </p>
+    `;
+          return;
+        }
+
+        const couponOptions = availableCoupons.map(coupon =>
+          `<option value="${coupon.promo_code}" data-coupon='${JSON.stringify(coupon)}'>
+            ${coupon.name} (${coupon.promo_code})
+          </option>`
         ).join('');
 
         couponSection.innerHTML = `
           <h4>คูปองส่วนลด</h4>
-          ${this.userCoupons.length > 0 ? `
-            <div class="coupon-box">
-              <label for="couponSelect">เลือกคูปอง:</label>
-              <select id="couponSelect" ${this.appliedCoupon ? 'disabled' : ''}>
-                <option value="">-- เลือกคูปอง --</option>
-                ${couponOptions}
-              </select>
-              <button id="applyCouponBtn" ${this.appliedCoupon ? 'disabled' : ''}>
-                ${this.appliedCoupon ? 'ใช้คูปองแล้ว' : 'ใช้คูปอง'}
-              </button>
-              ${this.appliedCoupon ? `
-                <button id="removeCouponBtn" class="remove-coupon-btn">ยกเลิกคูปอง</button>
-              ` : ''}
-            </div>
+          <div class="coupon-box">
+            <label for="couponSelect">เลือกคูปอง:</label>
+            <select id="couponSelect" ${this.appliedCoupon ? 'disabled' : ''}>
+              <option value="">-- เลือกคูปอง --</option>
+              ${couponOptions}
+            </select>
+            <button id="applyCouponBtn" ${this.appliedCoupon ? 'disabled' : ''}>
+              ${this.appliedCoupon ? 'ใช้คูปองแล้ว' : 'ใช้คูปอง'}
+            </button>
             ${this.appliedCoupon ? `
-              <div class="applied-coupon-info">
-                <p>🎟️ ใช้คูปอง: ${this.appliedCoupon.promo_code}</p>
-                <p>💰 ส่วนลด: ${this.appliedCoupon.discount.amount} บาท</p>
-              </div>
+              <button id="removeCouponBtn" class="remove-coupon-btn">ยกเลิกคูปอง</button>
             ` : ''}
-          ` : `
-            <p class="no-coupons">คุณยังไม่มีคูปองที่สามารถใช้ได้ <a href="/coupons">รับคูปองที่นี่</a></p>
-          `}
+          </div>
+          ${this.appliedCoupon ? `
+            <div class="applied-coupon-info">
+              <p>ใช้คูปอง: ${this.appliedCoupon.promo_code}</p>
+              <p>ส่วนลด: ${this.appliedCoupon.discount.amount} บาท</p>
+            </div>
+          ` : ''}
         `;
 
-        // Re-add event listeners
         const applyCouponBtn = document.getElementById('applyCouponBtn');
         const removeCouponBtn = document.getElementById('removeCouponBtn');
         const couponSelect = document.getElementById('couponSelect');
-        
+
         if (applyCouponBtn) {
           applyCouponBtn.addEventListener('click', this.handleApplyCoupon.bind(this));
         }
-        
+
         if (removeCouponBtn) {
           removeCouponBtn.addEventListener('click', this.handleRemoveCoupon.bind(this));
         }
@@ -506,24 +761,24 @@
 
         const subtotalElement = document.getElementById('subtotal');
         const totalElement = document.getElementById('total');
-        const discountElement = document.getElementById('discount');
 
         if (subtotalElement) {
           subtotalElement.textContent = subtotal + ' บาท';
         }
 
         let finalTotal = subtotal;
-        
-                  // Apply discount if coupon is applied
+
+        // Apply discount if coupon is applied
         if (this.appliedCoupon && this.appliedCoupon.discount) {
           finalTotal = Math.max(0, subtotal - this.appliedCoupon.discount.amount);
-          
+
           // Update discount display in summary
           const cartSummary = document.querySelector('.cart-summary');
           const existingDiscount = cartSummary.querySelector('.cart-discount');
-          
+
           if (existingDiscount) {
-            existingDiscount.querySelector('span:last-child').textContent = `-${this.appliedCoupon.discount.amount} บาท`;
+            existingDiscount.querySelector('span:last-child').textContent =
+              `-${this.appliedCoupon.discount.amount} บาท`;
           } else if (cartSummary) {
             const discountRow = document.createElement('div');
             discountRow.className = 'cart-discount';
@@ -557,22 +812,146 @@
 
         messageElement.textContent = message;
         notification.className = `notification ${type}`;
-        notification.classList.remove('hidden');
+
+        notification.classList.add('show');
 
         setTimeout(() => {
-          notification.classList.add('hidden');
+          notification.classList.remove('show');
         }, 3000);
+      }
+
+
+      getCartSummary() {
+        const subtotal = parseInt(document.getElementById('subtotal').textContent.replace(' บาท', ''));
+        const finalTotal = parseInt(document.getElementById('total').textContent.replace(' บาท', ''));
+        const discount = this.appliedCoupon ? this.appliedCoupon.discount.amount : 0;
+
+        return {
+          subtotal,
+          discount,
+          finalTotal,
+          appliedCoupon: this.appliedCoupon,
+          items: this.cartData
+        };
       }
     }
 
-    // Checkout function
-    function handleCheckout() {
-      alert("🚀 ระบบสั่งซื้อยังไม่ได้พัฒนา (ไว้เชื่อมกับ Orders API)");
+    // Checkout functions
+    function openCheckoutModal() {
+      const modal = document.getElementById('checkoutModal');
+      const summary = shoppingCart.getCartSummary();
+
+      // Populate order summary
+      const summaryContent = document.getElementById('orderSummaryContent');
+      summaryContent.innerHTML = `
+        <div class="summary-line">
+          <span>ราคาสินค้า:</span>
+          <span>${summary.subtotal} บาท</span>
+        </div>
+        ${summary.discount > 0 ? `
+          <div class="summary-line">
+            <span>ส่วนลด:</span>
+            <span>-${summary.discount} บาท</span>
+          </div>
+        ` : ''}
+        <div class="summary-line">
+          <span>ค่าจัดส่ง:</span>
+          <span>ฟรี</span>
+        </div>
+        <div class="summary-line total">
+          <span>ยอดรวมทั้งสิ้น:</span>
+          <span>${summary.finalTotal} บาท</span>
+        </div>
+      `;
+
+      modal.style.display = 'flex';
     }
 
-    // Initialize cart when page loads
-    document.addEventListener('DOMContentLoaded', () => {
-      new ShoppingCart();
+    function closeCheckoutModal() {
+      document.getElementById('checkoutModal').style.display = 'none';
+    }
+
+    // Handle checkout form submission
+    document.getElementById('checkoutForm').addEventListener('submit', async function (e) {
+      e.preventDefault();
+
+      const loading = document.getElementById('checkoutLoading');
+      loading.style.display = 'flex';
+
+      const deliveryAddress = document.getElementById('deliveryAddress').value.trim();
+      // const paymentMethod = document.getElementById('paymentMethod').value;
+      const notes = document.getElementById('notes').value.trim();
+
+      if (!deliveryAddress) {
+        loading.style.display = 'none';
+        alert('กรุณากรอกข้อมูลให้ครบถ้วน');
+        return;
+      }
+
+      try {
+        const summary = shoppingCart.getCartSummary();
+
+        const orderData = {
+          delivery_address: deliveryAddress,
+          // payment_method: paymentMethod,
+          notes: notes,
+          promo_code: summary.appliedCoupon ? summary.appliedCoupon.promo_code : null
+        };
+
+        const response = await fetch('/api/orders', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json'
+          },
+          credentials: 'include',
+          body: JSON.stringify(orderData)
+        });
+
+        const result = await response.json();
+
+        if (!response.ok || !result.success) {
+          throw new Error(result.error || 'ไม่สามารถสร้างคำสั่งซื้อได้');
+        }
+
+        // Show success message
+        document.querySelector('.checkout-content').innerHTML = `
+          <div class="success-message">
+            <h3>สั่งซื้อสำเร็จ</h3>
+            <p>คำสั่งซื้อของคุณได้รับการยืนยันแล้ว</p>
+            <div class="order-id">หมายเลขคำสั่งซื้อ: #${result.order_id}</div>
+            <p>คุณสามารถติดตามสถานะการจัดส่งได้ที่หน้าประวัติการสั่งซื้อ</p>
+            <div class="checkout-actions">
+              <a href="/orders" class="btn-checkout">ดูประวัติการสั่งซื้อ</a>
+              <a href="/" class="btn-cancel">กลับหน้าแรก</a>
+            </div>
+          </div>
+        `;
+
+        // Clear cart display
+        shoppingCart.container.innerHTML = `
+          <div class="empty-cart">
+            <h3>สั่งซื้อสำเร็จ</h3>
+            <p>ขอบคุณสำหรับการสั่งซื้อ คำสั่งซื้อหมายเลข #${result.order_id}</p>
+            <a href="/orders" class="continue-shopping-btn">ดูประวัติการสั่งซื้อ</a>
+          </div>
+        `;
+
+      } catch (err) {
+        console.error('Checkout error:', err);
+        loading.style.display = 'none';
+        alert('เกิดข้อผิดพลาด: ' + err.message);
+      }
+    });
+
+    // Initialize shopping cart
+    const shoppingCart = new ShoppingCart();
+
+    // Close modal when clicking outside
+    document.addEventListener('click', (e) => {
+      const modal = document.getElementById('checkoutModal');
+      if (e.target === modal) {
+        closeCheckoutModal();
+      }
     });
   </script>
 </body>

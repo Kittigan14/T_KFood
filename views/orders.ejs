@@ -1,0 +1,1105 @@
+<!DOCTYPE html>
+<html lang="th">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ประวัติการสั่งซื้อ</title>
+    <link rel="stylesheet" href="/css/base.css">
+    <style>
+        :root {
+            --color-pending: #fbbf24;
+            --color-accepted: #10b981;
+            --color-cooking: #f59e0b;
+            --color-delivering: #3b82f6;
+            --color-completed: #059669;
+            --color-cancelled: #ef4444;
+        }
+
+        .orders-container {
+            display: flex;
+            flex-direction: column;
+            gap: 24px;
+        }
+
+        .loading {
+            text-align: center;
+            padding: 40px;
+            font-size: 1.2rem;
+            color: #666;
+        }
+
+        .empty-orders {
+            text-align: center;
+            padding: 60px 20px;
+            background: #f8f9fa;
+            border-radius: 16px;
+            border: 2px dashed #d1d5db;
+        }
+
+        .empty-orders h3 {
+            color: #6b7280;
+            margin-bottom: 16px;
+        }
+
+        .empty-orders p {
+            color: #9ca3af;
+            margin-bottom: 24px;
+        }
+
+        .btn {
+            display: inline-block;
+            background: var(--color-primary);
+            color: white;
+            padding: 12px 24px;
+            border-radius: 8px;
+            text-decoration: none;
+            font-weight: 600;
+            transition: all 0.3s ease;
+            border: none;
+            cursor: pointer;
+        }
+
+        .btn:hover {
+            background: #374151;
+            transform: translateY(-2px);
+        }
+
+        .order-card {
+            background: white;
+            border-radius: 16px;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+            padding: 24px;
+            border: 1px solid #e5e7eb;
+            transition: all 0.3s ease;
+        }
+
+        .order-card:hover {
+            box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
+            transform: translateY(-2px);
+        }
+
+        .order-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+            padding-bottom: 16px;
+            border-bottom: 1px solid #f3f4f6;
+        }
+
+        .order-header h3 {
+            font-size: 1.5rem;
+            font-weight: 700;
+            color: var(--color-primary);
+            margin: 0;
+        }
+
+        .status-badge {
+            padding: 6px 16px;
+            border-radius: 20px;
+            font-size: 0.875rem;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .status-pending { background: #fef3c7; color: #92400e; }
+        .status-accepted { background: #d1fae5; color: #065f46; }
+        .status-cooking { background: #fef3c7; color: #92400e; }
+        .status-delivering { background: #dbeafe; color: #1e40af; }
+        .status-completed { background: #d1fae5; color: #065f46; }
+        .status-cancelled { background: #fee2e2; color: #991b1b; }
+
+        .order-info {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 16px;
+            margin: 20px 0;
+        }
+
+        .order-info p {
+            margin: 0;
+            padding: 12px;
+            background: #f9fafb;
+            border-radius: 8px;
+            font-size: 0.95rem;
+        }
+
+        .order-info strong {
+            color: var(--color-primary);
+            display: block;
+            margin-bottom: 4px;
+        }
+
+        /* Status Progress Tracker */
+        .status-tracker {
+            margin: 24px 0;
+            padding: 20px;
+            background: #f8f9fa;
+            border-radius: 12px;
+        }
+
+        .status-progress {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            position: relative;
+            margin-bottom: 16px;
+        }
+
+        .status-progress::before {
+            content: '';
+            position: absolute;
+            top: 20px;
+            left: 20px;
+            right: 20px;
+            height: 3px;
+            background: #e5e7eb;
+            z-index: 1;
+        }
+
+        .status-step {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            position: relative;
+            z-index: 2;
+            flex: 1;
+        }
+
+        .status-icon {
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            background: #e5e7eb;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 18px;
+            transition: all 0.5s ease;
+            margin-bottom: 8px;
+        }
+
+        .status-icon.active {
+            background: var(--color-completed);
+            color: white;
+            transform: scale(1.1);
+            box-shadow: 0 0 20px rgba(5, 150, 105, 0.3);
+        }
+
+        .status-icon.pending {
+            background: var(--color-pending);
+            color: white;
+            animation: pulse 2s infinite;
+        }
+
+        @keyframes pulse {
+            0%, 100% { transform: scale(1); }
+            50% { transform: scale(1.05); }
+        }
+
+        .status-label {
+            font-size: 0.8rem;
+            font-weight: 600;
+            color: #6b7280;
+            text-align: center;
+        }
+
+        .status-step.active .status-label {
+            color: var(--color-completed);
+        }
+
+        .progress-line {
+            position: absolute;
+            top: 20px;
+            left: 20px;
+            height: 3px;
+            background: var(--color-completed);
+            transition: width 0.8s ease;
+            z-index: 1;
+        }
+
+        /* Order Items */
+        .order-items {
+            list-style: none;
+            padding: 0;
+            margin: 20px 0;
+        }
+
+        .order-items h4 {
+            color: var(--color-primary);
+            margin-bottom: 16px;
+            font-size: 1.2rem;
+        }
+
+        .order-items li {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 12px;
+            background: #f9fafb;
+            border-radius: 8px;
+            margin-bottom: 8px;
+            transition: all 0.3s ease;
+        }
+
+        .order-items li:hover {
+            background: #f3f4f6;
+        }
+
+        .order-items img {
+            width: 50px;
+            height: 50px;
+            object-fit: cover;
+            border-radius: 8px;
+            border: 2px solid white;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+        }
+
+        .item-details {
+            flex: 1;
+            font-size: 0.95rem;
+        }
+
+        .item-name {
+            font-weight: 600;
+            color: var(--color-primary);
+        }
+
+        .item-price {
+            color: #6b7280;
+            font-size: 0.85rem;
+        }
+
+        /* Action Buttons */
+        .order-actions {
+            margin-top: 20px;
+            display: flex;
+            gap: 12px;
+            flex-wrap: wrap;
+        }
+
+        .action-btn {
+            padding: 8px 16px;
+            border: none;
+            border-radius: 6px;
+            font-size: 0.85rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .btn-primary { background: #3b82f6; color: white; }
+        .btn-primary:hover { background: #2563eb; }
+
+        .btn-success { background: #10b981; color: white; }
+        .btn-success:hover { background: #059669; }
+
+        .btn-secondary { background: #6b7280; color: white; }
+        .btn-secondary:hover { background: #4b5563; }
+
+        /* Modal Styles */
+        .modal-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.5);
+            display: none;
+            justify-content: center;
+            align-items: center;
+            z-index: 1000;
+        }
+
+        .modal-content {
+            background: white;
+            padding: 30px;
+            border-radius: 16px;
+            text-align: center;
+            max-width: 500px;
+            width: 90%;
+            max-height: 80vh;
+            overflow-y: auto;
+            box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1);
+        }
+
+        .modal-content h3 {
+            color: var(--color-completed);
+            margin-bottom: 16px;
+        }
+
+        .modal-content p {
+            margin-bottom: 20px;
+            color: #6b7280;
+        }
+
+        .modal-actions {
+            display: flex;
+            gap: 12px;
+            justify-content: center;
+            flex-wrap: wrap;
+        }
+
+        /* Review Styles */
+        .review-modal .modal-content {
+            max-width: 600px;
+            text-align: left;
+        }
+
+        .review-item {
+            background: #f9fafb;
+            border: 1px solid #e5e7eb;
+            border-radius: 12px;
+            padding: 20px;
+            margin-bottom: 20px;
+        }
+
+        .review-item:last-child {
+            margin-bottom: 0;
+        }
+
+        .review-product {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            margin-bottom: 16px;
+        }
+
+        .review-product img {
+            width: 50px;
+            height: 50px;
+            object-fit: cover;
+            border-radius: 8px;
+            border: 2px solid white;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+        }
+
+        .review-product-info {
+            flex: 1;
+        }
+
+        .review-product-name {
+            font-weight: 600;
+            color: var(--color-primary);
+            margin-bottom: 4px;
+        }
+
+        .review-product-price {
+            color: #6b7280;
+            font-size: 0.85rem;
+        }
+
+        .rating-section {
+            margin-bottom: 16px;
+        }
+
+        .rating-label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: 600;
+            color: var(--color-primary);
+        }
+
+        .star-rating {
+            display: flex;
+            gap: 4px;
+            margin-bottom: 8px;
+        }
+
+        .star {
+            font-size: 24px;
+            cursor: pointer;
+            color: #d1d5db;
+            transition: all 0.2s ease;
+        }
+
+        .star:hover,
+        .star.active {
+            color: #fbbf24;
+        }
+
+        .star.active {
+            transform: scale(1.1);
+        }
+
+        .comment-section {
+            margin-top: 16px;
+        }
+
+        .comment-label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: 600;
+            color: var(--color-primary);
+        }
+
+        .comment-input {
+            width: 100%;
+            min-height: 80px;
+            padding: 12px;
+            border: 2px solid #e5e7eb;
+            border-radius: 8px;
+            font-family: inherit;
+            font-size: 0.95rem;
+            resize: vertical;
+            transition: border-color 0.3s ease;
+        }
+
+        .comment-input:focus {
+            outline: none;
+            border-color: var(--color-primary);
+        }
+
+        .comment-input::placeholder {
+            color: #9ca3af;
+        }
+
+        .existing-reviews {
+            margin-top: 20px;
+            padding: 20px;
+            background: #f8f9fa;
+            border-radius: 12px;
+        }
+
+        .existing-reviews h4 {
+            color: var(--color-primary);
+            margin-bottom: 16px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .review-display {
+            background: white;
+            border: 1px solid #e5e7eb;
+            border-radius: 8px;
+            padding: 16px;
+            margin-bottom: 12px;
+        }
+
+        .review-display:last-child {
+            margin-bottom: 0;
+        }
+
+        .review-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 8px;
+        }
+
+        .review-product-name-small {
+            font-weight: 600;
+            color: var(--color-primary);
+            font-size: 0.9rem;
+        }
+
+        .review-date {
+            color: #6b7280;
+            font-size: 0.8rem;
+        }
+
+        .review-stars {
+            color: #fbbf24;
+            margin-bottom: 8px;
+        }
+
+        .review-comment {
+            color: #374151;
+            font-size: 0.9rem;
+            line-height: 1.5;
+        }
+
+        .error {
+            color: #ef4444;
+            text-align: center;
+            padding: 20px;
+            background: #fee2e2;
+            border-radius: 8px;
+            margin: 20px 0;
+        }
+
+        /* Responsive Design */
+        @media (max-width: 768px) {
+            .order-header {
+                flex-direction: column;
+                gap: 12px;
+                align-items: flex-start;
+            }
+
+            .order-info {
+                grid-template-columns: 1fr;
+            }
+
+            .status-progress {
+                flex-direction: column;
+                gap: 20px;
+            }
+
+            .status-progress::before {
+                width: 3px;
+                height: 100%;
+                left: 20px;
+                top: 40px;
+                right: auto;
+            }
+
+            .progress-line {
+                width: 3px !important;
+                height: var(--progress-height, 0%);
+                left: 20px;
+                top: 40px;
+            }
+
+            .status-step {
+                flex-direction: row;
+                width: 100%;
+                justify-content: flex-start;
+            }
+
+            .status-icon {
+                margin-right: 16px;
+                margin-bottom: 0;
+            }
+
+            .modal-content {
+                padding: 20px;
+                margin: 20px;
+            }
+        }
+    </style>
+</head>
+
+<body>
+    <div class="container">
+        <h2>📦 ติดตามคำสั่งซื้อ</h2>
+        <div id="orders-container" class="orders-container">
+            <div class="loading">กำลังโหลด...</div>
+        </div>
+    </div>
+
+    <!-- Delivery Confirmation Modal -->
+    <div id="deliveryModal" class="modal-overlay">
+        <div class="modal-content">
+            <h3>✅ การจัดส่งเสร็จสิ้น</h3>
+            <p>คำสั่งซื้อของคุณได้ถูกจัดส่งเรียบร้อยแล้ว กรุณายืนยันการรับสินค้า</p>
+            <div class="modal-actions">
+                <button id="confirmDelivery" class="action-btn btn-success">ยืนยันการรับสินค้า</button>
+                <button id="closeModal" class="action-btn btn-secondary">ปิด</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Review Modal -->
+    <div id="reviewModal" class="modal-overlay review-modal">
+        <div class="modal-content">
+            <h3>✍️ รีวิวสินค้า</h3>
+            <div id="reviewContent">
+                <!-- Review form will be populated here -->
+            </div>
+        </div>
+    </div>
+
+    <script>
+        class OrderTracker {
+            constructor() {
+                this.container = document.getElementById("orders-container");
+                this.statusUpdateTimers = new Map();
+                this.currentOrder = null;
+                this.loadOrders();
+            }
+
+            async loadOrders() {
+                try {
+                    const res = await fetch("/api/orders", {
+                        credentials: "include"
+                    });
+                    const data = await res.json();
+
+                    if (!data.success) {
+                        this.showError(data.error || "ไม่สามารถโหลดคำสั่งซื้อได้");
+                        return;
+                    }
+
+                    if (data.orders.length === 0) {
+                        this.showEmptyState();
+                        return;
+                    }
+
+                    this.renderOrders(data.orders);
+                    this.startStatusTracking();
+
+                } catch (err) {
+                    console.error("Error loading orders:", err);
+                    this.showError("เกิดข้อผิดพลาด: " + err.message);
+                }
+            }
+
+            showError(message) {
+                this.container.innerHTML = `<p class="error">⌛ ${message}</p>`;
+            }
+
+            showEmptyState() {
+                this.container.innerHTML = `
+                    <div class="empty-orders">
+                        <h3>คุณยังไม่มีการสั่งซื้อ</h3>
+                        <p>เริ่มเลือกสินค้าและสั่งซื้อ</p>
+                        <a href="/" class="btn">🛒 ไปเลือกสินค้า</a>
+                    </div>
+                `;
+            }
+
+            renderOrders(orders) {
+                this.container.innerHTML = orders.map(order => {
+                    const safeStatus = String(order.order_status)
+                        .toLowerCase()
+                        .replace(/\s+/g, '-')
+                        .replace(/[^a-z0-9\-_]/g, '');
+
+                    return `
+                        <div class="order-card" data-order-id="${order.order_id}">
+                            <div class="order-header">
+                                <h3>Order #${order.order_id}</h3>
+                                <span class="status-badge status-${safeStatus}">${this.getStatusText(order.order_status)}</span>
+                            </div>
+                            
+                            <div class="order-info">
+                                <p><strong>วันที่:</strong> ${new Date(order.created_at).toLocaleString("th-TH")}</p>
+                                <p><strong>ที่อยู่จัดส่ง:</strong> ${order.delivery_address || 'รับที่ร้าน'}</p>
+                                <p><strong>วิธีชำระเงิน:</strong> ${this.getPaymentMethodText(order.payment_method)}</p>
+                                <p><strong>ยอดรวม:</strong> ${order.final_amount} บาท</p>
+                            </div>
+
+                            ${this.renderStatusTracker(order)}
+
+                            <div class="order-items">
+                                <h4>สินค้า</h4>
+                                <ul>
+                                    ${order.items && order.items.length > 0 ? order.items.map(item => `
+                                        <li>
+                                            <img src="/images/${item.image_url}" alt="${item.product_name}" onerror="this.src='/images/default.png'">
+                                            <div class="item-details">
+                                                <div class="item-name">${item.product_name}</div>
+                                                <div class="item-price">จำนวน: ${item.quantity} x ${item.price} บาท</div>
+                                            </div>
+                                        </li>
+                                    `).join('') : '<li>ไม่มีสินค้า</li>'}
+                                </ul>
+                            </div>
+
+                            ${this.renderOrderActions(order)}
+                            ${this.renderExistingReviews(order)}
+                        </div>
+                    `;
+                }).join("");
+
+                // Attach event listeners after rendering
+                this.attachEventListeners();
+            }
+
+            renderStatusTracker(order) {
+                const statuses = [
+                    { key: 'pending', label: 'รับออเดอร์', icon: '📝' },
+                    { key: 'accepted', label: 'ยืนยันแล้ว', icon: '✅' },
+                    { key: 'cooking', label: 'กำลังเตรียม', icon: '👨‍🍳' },
+                    { key: 'delivering', label: 'กำลังจัดส่ง', icon: '🚚' },
+                    { key: 'completed', label: 'เสร็จสิ้น', icon: '🎉' }
+                ];
+
+                const currentStatusIndex = statuses.findIndex(s => s.key === order.order_status);
+                const progressWidth = currentStatusIndex >= 0 ? (currentStatusIndex / (statuses.length - 1)) * 100 : 0;
+
+                return `
+                    <div class="status-tracker">
+                        <div class="status-progress">
+                            <div class="progress-line" style="width: ${progressWidth}%"></div>
+                            ${statuses.map((status, index) => `
+                                <div class="status-step ${index <= currentStatusIndex ? 'active' : ''}">
+                                    <div class="status-icon ${index === currentStatusIndex ? 'pending' : index < currentStatusIndex ? 'active' : ''}">
+                                        ${status.icon}
+                                    </div>
+                                    <div class="status-label">${status.label}</div>
+                                </div>
+                            `).join('')}
+                        </div>
+                    </div>
+                `;
+            }
+
+            renderOrderActions(order) {
+                let actions = [];
+
+                if (order.order_status === 'pending' && order.payment_status === 'pending') {
+                    actions.push(`<button class="action-btn btn-primary" onclick="window.location.href='/orders/${order.order_id}/pay'">ชำระเงิน</button>`);
+                }
+
+                if (order.order_status === 'delivering') {
+                    actions.push(`<button class="action-btn btn-success" onclick="orderTracker.confirmDelivery(${order.order_id})">ยืนยันการรับสินค้า</button>`);
+                }
+
+                if (order.order_status === 'completed') {
+                    actions.push(`<button class="action-btn btn-primary" onclick="orderTracker.openReviewModal(${order.order_id})">เขียนรีวิว</button>`);
+                }
+
+                // Simulate progress button (for demo)
+                if (['pending', 'accepted', 'cooking'].includes(order.order_status)) {
+                    actions.push(`<button class="action-btn btn-secondary" onclick="orderTracker.simulateProgress(${order.order_id})">จำลองความคืบหน้า</button>`);
+                }
+
+                return actions.length > 0 ? `<div class="order-actions">${actions.join('')}</div>` : '';
+            }
+
+            renderExistingReviews(order) {
+                if (!order.reviews || order.reviews.length === 0) {
+                    return '';
+                }
+
+                return `
+                    <div class="existing-reviews">
+                        <h4>📝 รีวิวของคุณ</h4>
+                        ${order.reviews.map(review => `
+                            <div class="review-display">
+                                <div class="review-header">
+                                    <div class="review-product-name-small">${review.product_name}</div>
+                                    <div class="review-date">${new Date(review.created_at).toLocaleDateString('th-TH')}</div>
+                                </div>
+                                <div class="review-stars">${'⭐'.repeat(review.rating)}</div>
+                                ${review.comment ? `<div class="review-comment">"${review.comment}"</div>` : ''}
+                            </div>
+                        `).join('')}
+                    </div>
+                `;
+            }
+
+            attachEventListeners() {
+                // Delivery modal event listeners
+                document.getElementById('confirmDelivery').onclick = () => {
+                    this.processDeliveryConfirmation();
+                };
+
+                document.getElementById('closeModal').onclick = () => {
+                    this.closeDeliveryModal();
+                };
+
+                // Click outside modal to close
+                document.addEventListener('click', (e) => {
+                    if (e.target.classList.contains('modal-overlay')) {
+                        this.closeAllModals();
+                    }
+                });
+            }
+
+            startStatusTracking() {
+                // Poll for status updates every 30 seconds for active orders
+                const activeOrders = document.querySelectorAll('.order-card');
+                
+                activeOrders.forEach(card => {
+                    const orderId = card.dataset.orderId;
+                    const statusBadge = card.querySelector('.status-badge');
+                    
+                    if (statusBadge && !statusBadge.classList.contains('status-completed')) {
+                        const timer = setInterval(async () => {
+                            try {
+                                const res = await fetch(`/api/orders/${orderId}/status`, {
+                                    credentials: 'include'
+                                });
+                                const data = await res.json();
+                                
+                                if (data.success && data.status !== statusBadge.textContent) {
+                                    // Reload orders if status changed
+                                    this.loadOrders();
+                                    clearInterval(timer);
+                                }
+                            } catch (err) {
+                                console.error('Status check error:', err);
+                            }
+                        }, 30000);
+
+                        this.statusUpdateTimers.set(orderId, timer);
+                    }
+                });
+            }
+
+            async simulateProgress(orderId) {
+                try {
+                    const res = await fetch(`/api/orders/${orderId}/simulate-progress`, {
+                        method: 'POST',
+                        credentials: 'include'
+                    });
+
+                    const data = await res.json();
+                    
+                    if (data.success) {
+                        // Show notification and reload after a short delay
+                        setTimeout(() => {
+                            this.loadOrders();
+                        }, 2000);
+                    }
+                } catch (err) {
+                    console.error('Simulation error:', err);
+                }
+            }
+
+            confirmDelivery(orderId) {
+                this.currentOrder = orderId;
+                document.getElementById('deliveryModal').style.display = 'flex';
+            }
+
+            async processDeliveryConfirmation() {
+                if (!this.currentOrder) return;
+
+                try {
+                    const res = await fetch(`/api/orders/${this.currentOrder}/status`, {
+                        method: 'PUT',
+                        headers: {
+                            'Content-Type': 'application/json'
+                        },
+                        credentials: 'include',
+                        body: JSON.stringify({ status: 'completed' })
+                    });
+
+                    const data = await res.json();
+                    
+                    if (data.success) {
+                        this.closeDeliveryModal();
+                        setTimeout(() => {
+                            this.loadOrders();
+                            this.openReviewModal(this.currentOrder);
+                        }, 1000);
+                    }
+                } catch (err) {
+                    console.error('Delivery confirmation error:', err);
+                }
+            }
+
+            closeDeliveryModal() {
+                document.getElementById('deliveryModal').style.display = 'none';
+                this.currentOrder = null;
+            }
+
+            async openReviewModal(orderId) {
+                this.currentOrder = orderId;
+                
+                try {
+                    // Get order details and existing reviews
+                    const orderRes = await fetch(`/api/orders/${orderId}`, {
+                        credentials: 'include'
+                    });
+                    const orderData = await orderRes.json();
+
+                    if (!orderData.success) {
+                        throw new Error('ไม่สามารถโหลดข้อมูลคำสั่งซื้อได้');
+                    }
+
+                    const reviewRes = await fetch(`/api/orders/${orderId}/reviews`, {
+                        credentials: 'include'
+                    });
+                    const reviewData = await reviewRes.json();
+                    const existingReviews = reviewData.success ? reviewData.reviews : [];
+
+                    this.renderReviewForm(orderData.order.items, existingReviews);
+                    document.getElementById('reviewModal').style.display = 'flex';
+
+                } catch (err) {
+                    console.error('Error opening review modal:', err);
+                    alert('เกิดข้อผิดพลาดในการโหลดฟอร์มรีวิว');
+                }
+            }
+
+            renderReviewForm(items, existingReviews) {
+                const reviewContent = document.getElementById('reviewContent');
+                
+                const reviewsMap = new Map();
+                existingReviews.forEach(review => {
+                    reviewsMap.set(review.product_id, review);
+                });
+
+                reviewContent.innerHTML = `
+                    <form id="reviewForm">
+                        ${items.map(item => {
+                            const existingReview = reviewsMap.get(item.product_id);
+                            return `
+                                <div class="review-item">
+                                    <div class="review-product">
+                                        <img src="/images/${item.image_url}" alt="${item.product_name}" onerror="this.src='/images/default.png'">
+                                        <div class="review-product-info">
+                                            <div class="review-product-name">${item.product_name}</div>
+                                            <div class="review-product-price">${item.price} บาท</div>
+                                        </div>
+                                    </div>
+                                    
+                                    <div class="rating-section">
+                                        <label class="rating-label">คะแนน:</label>
+                                        <div class="star-rating" data-product-id="${item.product_id}">
+                                            ${[1,2,3,4,5].map(star => `
+                                                <span class="star ${existingReview && star <= existingReview.rating ? 'active' : ''}" 
+                                                      data-rating="${star}">⭐</span>
+                                            `).join('')}
+                                        </div>
+                                    </div>
+                                    
+                                    <div class="comment-section">
+                                        <label class="comment-label">ความคิดเห็น:</label>
+                                        <textarea class="comment-input" 
+                                                  data-product-id="${item.product_id}"
+                                                  placeholder="แบ่งปันประสบการณ์ของคุณเกี่ยวกับสินค้านี้...">${existingReview ? existingReview.comment || '' : ''}</textarea>
+                                    </div>
+                                </div>
+                            `;
+                        }).join('')}
+                        
+                        <div class="modal-actions">
+                            <button type="submit" class="btn btn-primary">บันทึกรีวิว</button>
+                            <button type="button" class="btn btn-secondary" onclick="orderTracker.closeReviewModal()">ยกเลิก</button>
+                        </div>
+                    </form>
+                `;
+
+                this.attachReviewEventListeners();
+            }
+
+            attachReviewEventListeners() {
+                // Star rating listeners
+                document.querySelectorAll('.star-rating').forEach(rating => {
+                    const stars = rating.querySelectorAll('.star');
+                    
+                    stars.forEach(star => {
+                        star.addEventListener('click', () => {
+                            const ratingValue = parseInt(star.dataset.rating);
+                            
+                            stars.forEach((s, index) => {
+                                if (index < ratingValue) {
+                                    s.classList.add('active');
+                                } else {
+                                    s.classList.remove('active');
+                                }
+                            });
+                        });
+
+                        star.addEventListener('mouseenter', () => {
+                            const ratingValue = parseInt(star.dataset.rating);
+                            stars.forEach((s, index) => {
+                                s.style.color = index < ratingValue ? '#fbbf24' : '#d1d5db';
+                            });
+                        });
+                    });
+
+                    rating.addEventListener('mouseleave', () => {
+                        stars.forEach(star => {
+                            star.style.color = '';
+                        });
+                    });
+                });
+
+                // Review form submission
+                document.getElementById('reviewForm').addEventListener('submit', (e) => {
+                    e.preventDefault();
+                    this.submitReviews();
+                });
+            }
+
+            async submitReviews() {
+                const reviews = [];
+                
+                document.querySelectorAll('.review-item').forEach(item => {
+                    const productId = item.querySelector('.star-rating').dataset.productId;
+                    const rating = item.querySelectorAll('.star.active').length;
+                    const comment = item.querySelector('.comment-input').value.trim();
+                    
+                    if (rating > 0) {
+                        reviews.push({
+                            product_id: parseInt(productId),
+                            rating: rating,
+                            comment: comment
+                        });
+                    }
+                });
+
+                if (reviews.length === 0) {
+                    alert('กรุณาให้คะแนนสินค้าอย่างน้อย 1 รายการ');
+                    return;
+                }
+
+                try {
+                    const res = await fetch(`/api/orders/${this.currentOrder}/reviews`, {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json'
+                        },
+                        credentials: 'include',
+                        body: JSON.stringify({ reviews })
+                    });
+
+                    const data = await res.json();
+                    
+                    if (data.success) {
+                        this.showReviewSuccess();
+                        setTimeout(() => {
+                            this.closeReviewModal();
+                            this.loadOrders(); // Reload to show submitted reviews
+                        }, 2000);
+                    } else {
+                        throw new Error(data.error || 'ไม่สามารถบันทึกรีวิวได้');
+                    }
+
+                } catch (err) {
+                    console.error('Review submission error:', err);
+                    alert('เกิดข้อผิดพลาดในการบันทึกรีวิว: ' + err.message);
+                }
+            }
+
+            showReviewSuccess() {
+                const reviewContent = document.getElementById('reviewContent');
+                reviewContent.innerHTML = `
+                    <div style="text-align: center; padding: 40px 20px;">
+                        <div style="font-size: 4rem; color: #10b981; margin-bottom: 20px;">✅</div>
+                        <h3 style="color: #10b981; margin-bottom: 16px;">บันทึกรีวิวเรียบร้อยแล้ว!</h3>
+                        <p style="color: #6b7280;">ขอบคุณสำหรับการแบ่งปันประสบการณ์ของคุณ</p>
+                        <button id="confirmDelivery" class="action-btn btn-success" onclick="window.location.href='/'">หน้าแรก</button>
+                    </div>
+                `;
+            }
+
+            closeReviewModal() {
+                document.getElementById('reviewModal').style.display = 'none';
+                this.currentOrder = null;
+            }
+
+            closeAllModals() {
+                document.querySelectorAll('.modal-overlay').forEach(modal => {
+                    modal.style.display = 'none';
+                });
+                this.currentOrder = null;
+            }
+
+            getStatusText(status) {
+                const statusMap = {
+                    'pending': 'รอดำเนินการ',
+                    'accepted': 'รับออเดอร์แล้ว',
+                    'cooking': 'กำลังเตรียม',
+                    'delivering': 'กำลังจัดส่ง',
+                    'completed': 'เสร็จสิ้น',
+                    'cancelled': 'ยกเลิก'
+                };
+                return statusMap[status] || status;
+            }
+
+            getPaymentMethodText(method) {
+                const methodMap = {
+                    'cash': 'เงินสดปลายทาง',
+                    'credit_card': 'บัตรเครดิต',
+                    'mobile_banking': 'โมบายแบงกิ้ง',
+                    'promptpay': 'พร้อมเพย์'
+                };
+                return methodMap[method] || method || 'ไม่ระบุ';
+            }
+        }
+
+        // Initialize order tracker
+        const orderTracker = new OrderTracker();
+    </script>
+</body>
+
+</html>
