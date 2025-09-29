@@ -161,7 +161,6 @@
         }
     }
 
-    // Modal close functionality
     function closeModal() {
         if (productModal) {
             productModal.classList.add("hidden");
@@ -169,7 +168,6 @@
         }
     }
 
-    // Close modal when clicking outside
     if (productModal) {
         productModal.addEventListener("click", (e) => {
             if (e.target === productModal) {
@@ -178,11 +176,54 @@
         });
     }
 
-    // Close modal with Escape key
     document.addEventListener("keydown", (e) => {
         if (e.key === "Escape" && productModal && !productModal.classList.contains("hidden")) {
             closeModal();
         }
+    });
+
+    function openAboutModal() {
+        const aboutModal = document.getElementById("aboutModal");
+        if (aboutModal) {
+            aboutModal.classList.remove("hidden");
+            document.body.style.overflow = "hidden";
+        }
+    }
+
+    function closeAboutModal() {
+        const aboutModal = document.getElementById("aboutModal");
+        if (aboutModal) {
+            aboutModal.classList.add("hidden");
+            document.body.style.overflow = "";
+        }
+    }
+
+    document.addEventListener('DOMContentLoaded', function () {
+        const aboutLink = document.querySelector('a[href="/"][class="logo"]:nth-child(3)');
+        if (aboutLink) {
+            aboutLink.addEventListener('click', function (e) {
+                e.preventDefault();
+                openAboutModal();
+            });
+        }
+
+        const aboutModal = document.getElementById("aboutModal");
+        if (aboutModal) {
+            aboutModal.addEventListener("click", (e) => {
+                if (e.target === aboutModal) {
+                    closeAboutModal();
+                }
+            });
+        }
+
+        document.addEventListener("keydown", (e) => {
+            if (e.key === "Escape") {
+                const aboutModal = document.getElementById("aboutModal");
+                if (aboutModal && !aboutModal.classList.contains("hidden")) {
+                    closeAboutModal();
+                }
+            }
+        });
     });
 
     // Category filtering

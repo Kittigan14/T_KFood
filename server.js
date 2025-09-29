@@ -467,25 +467,21 @@ function initializeDatabase() {
 
   console.log("✅ Database initialized.");
 
-  setTimeout(async () => {
-    try {
-      const seedPath = path.join(__dirname, 'seed.js');
-      
-      if (fs.existsSync(seedPath)) {
-        console.log('🌱 Running seed data in 3 seconds...');
-        
-        delete require.cache[require.resolve('./seed.js')];
-        const { runSeed } = require('./seed.js');
-        
-        await runSeed();
-        console.log('🌱 Seed completed successfully!');
+  setTimeout(() => {
+    db.get("SELECT COUNT(*) as count FROM Categories", (err, row) => {
+      if (err) return console.error("❌ Seed check error:", err);
+
+      if (row.count === 0) {
+        console.log("🌱 Running seed data...");
+        const { runSeed } = require("./seed.js");
+        runSeed().then(() => {
+          console.log("🌱 Seed completed successfully!");
+        });
       } else {
-        console.log('⚠️ seed.js not found, skipping seed...');
+        console.log("⚠️ Seed skipped: data already exists.");
       }
-    } catch (err) {
-      console.error('❌ Seed error:', err);
-    }
-  }, 3000);
+    });
+  }, 1000); 
 }
 
 app.get("/", (req, res) => {
