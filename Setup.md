@@ -4,6 +4,12 @@ Check Version Node js & Npm:
 - npm --version
 - npm -v
 
+Install Extensions Vscode :
+- EJS language  : Digital
+- EJS Language Support : Leon S
+- ejs Snippets
+- .ejs
+
 Setup Project :
 - npm init -y
 
