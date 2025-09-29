@@ -384,7 +384,7 @@
             </div>
             <div class="info-item">
               <span>ยอดที่ต้องชำระ:</span>
-              <span>${this.orderData.final_amount} บาท</span>
+              <span>${this.orderData.final_amount - 25} บาท</span>
             </div>
           </div>
         `;
@@ -434,7 +434,7 @@
           <div class="amount-input" id="amountInput">
             <label for="paymentAmount">จำนวนเงินที่ชำระ (บาท)</label>
             <input type="number" id="paymentAmount" min="1" step="0.01" 
-                   value="${this.orderData.final_amount}" required>
+                   value="${this.orderData.final_amount - 25}" required>
           </div>
 
           <div id="errorMessage" class="error-message"></div>
@@ -507,7 +507,7 @@
               <div class="qr-code">
                 <div class="qr-placeholder">QR</div>
                 <p>สแกน QR Code เพื่อชำระเงิน</p>
-                <p><strong>จำนวน:</strong> ${this.orderData.final_amount} บาท</p>
+                <p><strong>จำนวน:</strong> ${this.orderData.final_amount - 25} บาท</p>
                 <p><small>หลังจากชำระเงินแล้ว กรุณากดปุ่ม "ยืนยันการชำระเงิน"</small></p>
               </div>
             `;
@@ -521,7 +521,7 @@
               <p>ธนาคารกสิกรไทย<br>
               เลขที่บัญชี: 123-4-56789-0<br>
               ชื่อบัญชี: ร้านอาหาร T&KFood</p>
-              <p><strong>จำนวนเงิน:</strong> ${this.orderData.final_amount} บาท</p>
+              <p><strong>จำนวนเงิน:</strong> ${this.orderData.final_amount - 25} บาท</p>
               <p><small>กรุณาโอนเงินและกดปุ่ม "ยืนยันการชำระเงิน"</small></p>
             `;
             amountInput.classList.remove('show');
@@ -531,7 +531,7 @@
             detailsDiv.innerHTML = `
               <h4>ชำระผ่านบัตรเครดิต/เดบิต</h4>
               <p>คุณจะถูกเปลี่ยนเส้นทางไปยังหน้าชำระเงินที่ปลอดภัย</p>
-              <p><strong>จำนวนเงิน:</strong> ${this.orderData.final_amount} บาท</p>
+              <p><strong>จำนวนเงิน:</strong> ${this.orderData.final_amount - 25} บาท</p>
               <p><small>รองรับบัตร Visa, Mastercard, JCB</small></p>
             `;
             amountInput.classList.remove('show');
@@ -570,7 +570,7 @@
         const amountInput = document.getElementById('paymentAmount');
         const amount = parseFloat(amountInput.value);
         
-        if (this.selectedMethod === 'cash' && amount < this.orderData.final_amount) {
+        if (this.selectedMethod === 'cash' && amount < this.orderData.final_amount - 25) {
           this.showError('จำนวนเงินต้องไม่น้อยกว่ายอดที่ต้องชำระ');
           return false;
         }

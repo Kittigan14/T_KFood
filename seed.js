@@ -79,8 +79,8 @@ const promotions = [
 const admins = [
   {
     name: "AdminTester",
-    email: "admin1@tkfood.com",
-    password: "admin123",
+    email: "admin@tkfood.com",
+    password: "123123",
     phone: "0911111111",
     role: "admin"
   }

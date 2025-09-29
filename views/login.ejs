@@ -9,11 +9,99 @@
   <link rel="stylesheet" href="/css/auth.css">
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
   <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+  <style>
+    .forgot-password-link {
+      display: block;
+      text-align: right;
+      margin-top: 8px;
+      margin-bottom: 16px;
+      color: var(--color-primary);
+      font-size: 0.9rem;
+      cursor: pointer;
+      text-decoration: none;
+    }
+
+    .forgot-password-link:hover {
+      text-decoration: underline;
+    }
+
+    /* Modal Styles */
+    .modal-overlay {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: rgba(0, 0, 0, 0.5);
+      display: none;
+      justify-content: center;
+      align-items: center;
+      z-index: 9999;
+    }
+
+    .modal-content {
+      background: white;
+      padding: 30px;
+      border-radius: 16px;
+      max-width: 450px;
+      width: 90%;
+      box-shadow: 0 10px 25px rgba(0, 0, 0, 0.2);
+    }
+
+    .modal-content h3 {
+      margin-bottom: 20px;
+      color: var(--color-primary);
+    }
+
+    .modal-close {
+      float: right;
+      font-size: 24px;
+      cursor: pointer;
+      color: #666;
+    }
+
+    .modal-close:hover {
+      color: #333;
+    }
+
+    .form-group {
+      margin-bottom: 20px;
+    }
+
+    .form-group label {
+      display: block;
+      margin-bottom: 8px;
+      font-weight: 600;
+      color: var(--color-primary);
+    }
+
+    .form-group input {
+      width: 100%;
+      padding: 12px;
+      border: 2px solid #e5e7eb;
+      border-radius: 8px;
+      font-size: 1rem;
+    }
+
+    .form-group input:focus {
+      outline: none;
+      border-color: var(--color-primary);
+    }
+
+    .reset-token-display {
+      background: #f3f4f6;
+      padding: 12px;
+      border-radius: 8px;
+      margin: 16px 0;
+      font-family: monospace;
+      word-break: break-all;
+    }
+  </style>
 </head>
 
 <body>
   <div class="form-box">
-    <h2>เข้าสู่ระบบ</h2>
+      <h2>เข้าสู่ระบบ</h2>
     <form id="loginForm" class="form">
       <input type="email" name="email" placeholder="อีเมล" required>
       <div class="password-wrapper">
@@ -22,12 +110,63 @@
           <img src="/images/icon/eye.png" alt="toggle">
         </span>
       </div>
+      <a href="#" class="forgot-password-link" onclick="openForgotPasswordModal(event)">ลืมรหัสผ่าน?</a>
       <button type="submit" class="btn-submit">เข้าสู่ระบบ</button>
     </form>
-    <p>ยังไม่มีบัญชี? <a href="/register">สมัครสมาชิก</a></p>
+      <p>ยังไม่มีบัญชี? <a href="/register">สมัครสมาชิก</a></p>
+  </div>
+
+  <!-- Forgot Password Modal -->
+  <div id="forgotPasswordModal" class="modal-overlay">
+    <div class="modal-content">
+      <span class="modal-close" onclick="closeForgotPasswordModal()">&times;</span>
+      <h3>ลืมรหัสผ่าน</h3>
+      <form id="forgotPasswordForm">
+        <div class="form-group">
+          <label for="forgotEmail">อีเมลของคุณ:</label>
+          <input type="email" id="forgotEmail" placeholder="กรอกอีเมลที่ลงทะเบียนไว้" required>
+        </div>
+        <button type="submit" class="btn-submit">ส่งลิงก์รีเซ็ตรหัสผ่าน</button>
+      </form>
+    </div>
+  </div>
+
+  <!-- Reset Password Modal -->
+  <div id="resetPasswordModal" class="modal-overlay">
+    <div class="modal-content">
+      <span class="modal-close" onclick="closeResetPasswordModal()">&times;</span>
+      <h3>รีเซ็ตรหัสผ่าน</h3>
+      <div id="resetTokenInfo" class="reset-token-display" style="display: none;"></div>
+      <form id="resetPasswordForm">
+        <div class="form-group">
+          <label for="resetToken">รหัสยืนยัน (Token):</label>
+          <input type="text" id="resetToken" placeholder="กรอกรหัสที่ได้รับ" required>
+        </div>
+        <div class="form-group">
+          <label for="newPassword">รหัสผ่านใหม่:</label>
+          <div class="password-wrapper">
+            <input type="password" id="newPassword" placeholder="กรอกรหัสผ่านใหม่" required>
+            <span class="toggle-password" data-target="newPassword">
+              <img src="/images/icon/eye.png" alt="toggle">
+            </span>
+          </div>
+        </div>
+        <div class="form-group">
+          <label for="confirmPassword">ยืนยันรหัสผ่านใหม่:</label>
+          <div class="password-wrapper">
+            <input type="password" id="confirmPassword" placeholder="กรอกรหัสผ่านใหม่อีกครั้ง" required>
+            <span class="toggle-password" data-target="confirmPassword">
+              <img src="/images/icon/eye.png" alt="toggle">
+            </span>
+          </div>
+        </div>
+        <button type="submit" class="btn-submit">รีเซ็ตรหัสผ่าน</button>
+      </form>
+    </div>
   </div>
 
   <script>
+    // Toggle password visibility
     document.querySelectorAll(".toggle-password").forEach(btn => {
       btn.addEventListener("click", function () {
         const targetId = this.getAttribute("data-target");
@@ -44,6 +183,7 @@
       });
     });
 
+    // Input validation
     const inputs = document.querySelectorAll('input');
     inputs.forEach(input => {
       input.addEventListener('blur', function () {
@@ -51,6 +191,7 @@
       });
     });
 
+    // Login form submission
     document.getElementById('loginForm').addEventListener('submit', async (e) => {
       e.preventDefault();
 
@@ -71,10 +212,7 @@
           headers: {
             'Content-Type': 'application/json',
           },
-          body: JSON.stringify({
-            email,
-            password
-          })
+          body: JSON.stringify({ email, password })
         });
 
         const data = await response.json();
@@ -110,31 +248,141 @@
       }
     });
 
-    function showNotification(message, type = 'info') {
-      let notification = document.getElementById('notification');
-      if (!notification) {
-        notification = document.createElement('div');
-        notification.id = 'notification';
-        notification.className = 'notification';
-        notification.style.cssText = `
-                    position: fixed; top: 20px; right: 20px; 
-                    padding: 15px 25px; border-radius: 8px; 
-                    color: white; font-weight: 600; z-index: 10000;
-                    transform: translateX(400px); transition: transform 0.3s;
-                `;
-        document.body.appendChild(notification);
+    // Forgot Password Modal
+    function openForgotPasswordModal(e) {
+      e.preventDefault();
+      document.getElementById('forgotPasswordModal').style.display = 'flex';
+    }
+
+    function closeForgotPasswordModal() {
+      document.getElementById('forgotPasswordModal').style.display = 'none';
+    }
+
+    function closeResetPasswordModal() {
+      document.getElementById('resetPasswordModal').style.display = 'none';
+    }
+
+    // Forgot Password Form
+    document.getElementById('forgotPasswordForm').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      
+      const email = document.getElementById('forgotEmail').value;
+      const submitButton = e.target.querySelector('button[type="submit"]');
+      const originalText = submitButton.textContent;
+
+      submitButton.disabled = true;
+      submitButton.textContent = 'กำลังส่ง...';
+
+      try {
+        const response = await fetch('/api/auth/forgot-password', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ email })
+        });
+
+        const data = await response.json();
+
+        if (data.success) {
+          closeForgotPasswordModal();
+          
+          document.getElementById('resetTokenInfo').textContent = 
+            `รหัสยืนยันของคุณ: ${data.resetToken}\n(Token Resest Password)`;
+          document.getElementById('resetTokenInfo').style.display = 'block';
+          document.getElementById('resetToken').value = data.resetToken;
+          
+          Swal.fire({
+            icon: 'success',
+            title: 'สำเร็จ',
+            text: data.message
+          }).then(() => {
+            document.getElementById('resetPasswordModal').style.display = 'flex';
+          });
+        } else {
+          Swal.fire({
+            icon: 'error',
+            title: 'ไม่สำเร็จ',
+            text: data.error
+          });
+        }
+      } catch (error) {
+        console.error('Error:', error);
+        Swal.fire({
+          icon: 'error',
+          title: 'เกิดข้อผิดพลาด',
+          text: 'ไม่สามารถดำเนินการได้'
+        });
+      } finally {
+        submitButton.disabled = false;
+        submitButton.textContent = originalText;
+      }
+    });
+
+    // Reset Password Form
+    document.getElementById('resetPasswordForm').addEventListener('submit', async (e) => {
+      e.preventDefault();
+
+      const token = document.getElementById('resetToken').value;
+      const newPassword = document.getElementById('newPassword').value;
+      const confirmPassword = document.getElementById('confirmPassword').value;
+
+      if (newPassword !== confirmPassword) {
+        Swal.fire({
+          icon: 'error',
+          title: 'รหัสผ่านไม่ตรงกัน',
+          text: 'กรุณากรอกรหัสผ่านให้ตรงกัน'
+        });
+        return;
       }
 
-      notification.textContent = message;
-      notification.style.backgroundColor = type === 'error' ? '#e74c3c' :
-        type === 'success' ? '#10b981' : '#3498db';
-      notification.classList.add('show');
-      notification.style.transform = 'translateX(0)';
+      const submitButton = e.target.querySelector('button[type="submit"]');
+      const originalText = submitButton.textContent;
 
-      setTimeout(() => {
-        notification.style.transform = 'translateX(400px)';
-        setTimeout(() => notification.classList.remove('show'), 300);
-      }, 3000);
+      submitButton.disabled = true;
+      submitButton.textContent = 'กำลังรีเซ็ต...';
+
+      try {
+        const response = await fetch('/api/auth/reset-password', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ token, newPassword })
+        });
+
+        const data = await response.json();
+
+        if (data.success) {
+          closeResetPasswordModal();
+          Swal.fire({
+            icon: 'success',
+            title: 'สำเร็จ',
+            text: data.message
+          }).then(() => {
+            window.location.reload();
+          });
+        } else {
+          Swal.fire({
+            icon: 'error',
+            title: 'ไม่สำเร็จ',
+            text: data.error
+          });
+        }
+      } catch (error) {
+        console.error('Error:', error);
+        Swal.fire({
+          icon: 'error',
+          title: 'เกิดข้อผิดพลาด',
+          text: 'ไม่สามารถดำเนินการได้'
+        });
+      } finally {
+        submitButton.disabled = false;
+        submitButton.textContent = originalText;
+      }
+    });
+
+    // Close modal when clicking outside
+    window.onclick = function(event) {
+      if (event.target.classList.contains('modal-overlay')) {
+        event.target.style.display = 'none';
+      }
     }
   </script>
 </body>

@@ -465,6 +465,17 @@ function initializeDatabase() {
         )
     `);
 
+  db.run(`
+    CREATE TABLE IF NOT EXISTS Password_Resets (
+      reset_id INTEGER PRIMARY KEY AUTOINCREMENT,
+      email TEXT NOT NULL,
+      token TEXT NOT NULL UNIQUE,
+      expires_at DATETIME NOT NULL,
+      used INTEGER DEFAULT 0,
+      created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+    )
+  `);
+
   console.log("✅ Database initialized.");
 
   setTimeout(() => {
@@ -2018,7 +2029,7 @@ app.get("/api/admin/stats", authenticateAdmin, (req, res) => {
         stats.total_members = row3?.total_members || 0;
 
         db.get(
-          `SELECT IFNULL(SUM(final_amount), 0) as revenue_today
+          `SELECT IFNULL(SUM(final_amount - 25), 0) as revenue_today
            FROM Orders 
            WHERE strftime('%Y-%m-%d', created_at) = strftime('%Y-%m-%d', 'now', 'localtime')
              AND order_status = 'completed'`,
@@ -2518,7 +2529,10 @@ app.delete("/api/admin/categories/:id", authenticateAdmin, (req, res) => {
 
 app.get("/api/admin/orders", authenticateAdmin, (req, res) => {
   const query = `
-    SELECT o.order_id, o.final_amount, o.order_status, o.created_at,
+    SELECT o.order_id, 
+           (o.final_amount) AS final_amount,
+           o.order_status, 
+           o.created_at,
            u.name AS customer_name,
            e.name AS delivery_person
     FROM Orders o
@@ -3232,6 +3246,101 @@ app.post("/api/auth/login", (req, res) => {
       redirectTo: redirectTo,
     });
   });
+});
+
+app.post("/api/auth/forgot-password", async (req, res) => {
+  const { email } = req.body;
+
+  if (!email) {
+    return res.status(400).json({
+      success: false,
+      error: "กรุณากรอกอีเมล"
+    });
+  }
+
+  db.get("SELECT customer_id, name FROM Users WHERE email = ?", [email], (err, user) => {
+    if (err) {
+      return res.status(500).json({
+        success: false,
+        error: "เกิดข้อผิดพลาดในระบบ"
+      });
+    }
+
+    if (!user) {
+      return res.status(404).json({
+        success: false,
+        error: "ไม่พบอีเมลนี้ในระบบ"
+      });
+    }
+
+    const resetToken = Math.random().toString(36).substring(2, 15);
+    const expiresAt = new Date(Date.now() + 3600000).toISOString();
+
+    db.run(
+      `INSERT INTO Password_Resets (email, token, expires_at) VALUES (?, ?, ?)`,
+      [email, resetToken, expiresAt],
+      function (err) {
+        if (err) {
+          return res.status(500).json({
+            success: false,
+            error: "ไม่สามารถสร้าง reset token ได้"
+          });
+        }
+
+        res.json({
+          success: true,
+          message: "ส่งลิงก์รีเซ็ตรหัสผ่านไปยังอีเมลของคุณแล้ว",
+          resetToken: resetToken
+        });
+      }
+    );
+  });
+});
+
+app.post("/api/auth/reset-password", async (req, res) => {
+  const { token, newPassword } = req.body;
+
+  if (!token || !newPassword) {
+    return res.status(400).json({
+      success: false,
+      error: "ข้อมูลไม่ครบถ้วน"
+    });
+  }
+
+  db.get(
+    `SELECT email FROM Password_Resets WHERE token = ? AND expires_at > datetime('now') AND used = 0`,
+    [token],
+    async (err, reset) => {
+      if (err || !reset) {
+        return res.status(400).json({
+          success: false,
+          error: "ลิงก์รีเซ็ตรหัสผ่านไม่ถูกต้องหรือหมดอายุแล้ว"
+        });
+      }
+
+      const hashedPassword = await bcrypt.hash(newPassword, 10);
+
+      db.run(
+        `UPDATE Users SET password = ? WHERE email = ?`,
+        [hashedPassword, reset.email],
+        function (err) {
+          if (err) {
+            return res.status(500).json({
+              success: false,
+              error: "ไม่สามารถรีเซ็ตรหัสผ่านได้"
+            });
+          }
+
+          db.run(`UPDATE Password_Resets SET used = 1 WHERE token = ?`, [token]);
+
+          res.json({
+            success: true,
+            message: "รีเซ็ตรหัสผ่านสำเร็จ"
+          });
+        }
+      );
+    }
+  );
 });
 
 app.get("/api/search", (req, res) => {
