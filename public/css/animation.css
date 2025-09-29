@@ -18,6 +18,17 @@
   animation: fadeUp 0.8s ease forwards;
 }
 
+@keyframes fadeSlide {
+  from {
+    opacity: 0;
+    transform: translateY(40px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
 @keyframes fadeImages {
   0%   { background-image: url('/images/fade-background/1.jpg'); opacity: 1; }
   30%  { background-image: url('/images/fade-background/1.jpg'); opacity: 1; }

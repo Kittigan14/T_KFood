@@ -26,7 +26,7 @@ body {
 }
 
 html {
-  scroll-behavior: smooth;
+    scroll-behavior: smooth;
 }
 
 /* Utility classes */
@@ -141,7 +141,7 @@ html {
     align-items: center;
 }
 
-.navbar-center .title{
+.navbar-center .title {
     font-family: "Playfair Display", serif;
     font-size: 40px;
 }
@@ -202,35 +202,44 @@ html {
     overflow: hidden;
     height: 700px;
     color: white;
+    text-align: center;
 }
 
 .banner::before {
     content: "";
     position: absolute;
-    top: 0; left: 0;
-    width: 100%; height: 100%;
+    inset: 0;
     background-size: cover;
     background-position: center;
     background-image: url('/images/fade-background/1.jpg');
-    z-index: -1;
-    animation: fadeImages 15s infinite;
+    z-index: -2;
+    animation: fadeImages 20s infinite;
 }
 
-.content-banner {
-    position: relative;
-    max-width: 800px;
-    text-align: center;
-    padding: 20px;
-    z-index: 1;
+.banner::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.45);
+    z-index: -1;
 }
 
 .content-banner h1 {
-    font-size: 4em;
-    font-weight: 600;
-    color: #fff;
-    margin: 0 auto;
-    line-height: 1.4;
-    text-shadow: 0 2px 6px rgba(0, 0, 0, 0.4);
+    font-size: 3.8rem;
+    font-weight: 700;
+    margin: 0 auto 25px;
+    line-height: 1.3;
+    color: #999999;
+    text-shadow: 0 4px 12px rgba(0, 0, 0, 0.6);
+    letter-spacing: 1px;
+    animation: fadeSlide 1.2s ease-out forwards;
+}
+
+.content-banner h1 span {
+    font-family: "Playfair Display", serif;
+    color: #999999;
+    font-weight: 800;
+    text-shadow: 0 3px 10px rgba(0, 0, 0, 0.5);
 }
 
 /* Sections */
@@ -343,10 +352,12 @@ h2::after {
 /* Modal styles */
 .modal {
     position: fixed;
-    top: 0; /* changed from 30px to 0 */
+    top: 0;
+    /* changed from 30px to 0 */
     left: 0;
     width: 100%;
-    height: 100vh; /* full viewport height */
+    height: 100vh;
+    /* full viewport height */
     background-color: rgba(26, 26, 26, 0.4);
     display: flex;
     align-items: center;
@@ -482,50 +493,91 @@ h2::after {
 }
 
 .footer {
-    padding: 30px 20px;
-    background-color: rgba(255, 255, 255, 0.2);
-    backdrop-filter: blur(10px);
-    box-shadow: 0 -4px 6px var(--shadow-soft);
-    border-top: 1px solid rgba(26, 26, 26, 0.1);
-    border-radius: var(--border-radius);
-    display: flex;
-    justify-content: center;
-    align-items: center;
+    background: linear-gradient(135deg, #fdfdfd, #f7f7f7);
+    border-top: 1px solid rgba(0, 0, 0, 0.1);
+    box-shadow: 0 -3px 8px rgba(0, 0, 0, 0.05);
+    margin-top: 40px;
 }
 
 .footer .container {
+    max-width: 1200px;
+    margin: auto;
     display: flex;
     justify-content: space-between;
-    align-items: center;
     flex-wrap: wrap;
-    padding: 30px;
-}
-
-.footer>div {
-    flex: 1 1 30%;
-    margin: 10px;
+    padding: 40px 20px;
+    gap: 20px;
 }
 
 .footer-left,
 .footer-center,
 .footer-right {
-    width: 300px;
-
-    p {
-        margin: 8px 0;
-        font-size: 1rem;
-        color: var(--color-primary);
-    }
-
-    .title-footer {
-        font-size: 2rem;
-        font-weight: 600;
-    }
+    flex: 1 1 300px;
+    min-width: 250px;
 }
 
-.footer section {
-    display: flex;
-    flex-direction: column;
+.footer-left p,
+.footer-center p,
+.footer-right p,
+.footer-right ul li {
+    margin: 8px 0;
+    font-size: 0.95rem;
+    color: var(--color-secondary);
+}
+
+.footer .title-footer {
+    font-size: 1.8rem;
+    font-weight: 700;
+    margin-bottom: 12px;
+    color: var(--color-primary);
+    font-family: "Playfair Display", serif;
+}
+
+.footer-center h4,
+.footer-right h4 {
+    font-size: 1.2rem;
+    margin-bottom: 10px;
+    color: var(--color-primary);
+}
+
+.footer-right ul {
+    list-style: none;
+    padding: 0;
+}
+
+.footer-right ul li {
+    margin: 6px 0;
+}
+
+.footer-right ul li a {
+    color: var(--color-primary);
+    text-decoration: none;
+    transition: color 0.2s;
+}
+
+.footer-right ul li a:hover {
+    color: var(--color-warning-text);
+}
+
+.footer-left a {
+    color: var(--color-primary);
+    text-decoration: none;
+}
+
+.footer-left a:hover {
+    text-decoration: underline;
+    color: var(--color-warning-text);
+}
+
+.footer-top {
+    text-align: center;
+    padding: 20px 10px 0;
+}
+
+.footer-top .title-footer {
+    font-size: 2rem;
+    font-weight: 700;
+    color: var(--color-primary);
 }
 
 @media(max-width: 768px) {

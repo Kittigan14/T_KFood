@@ -1,0 +1,91 @@
+<!DOCTYPE html>
+<html lang="th">
+
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>ประวัติการสั่งซื้อ</title>
+  <link rel="stylesheet" href="/css/base.css" />
+  <link rel="stylesheet" href="/css/history.css" />
+</head>
+
+<body>
+  <div class="container">
+    <h2>📦 ประวัติการสั่งซื้อ</h2>
+    <div id="history-list">กำลังโหลด...</div>
+    <button onclick="window.location.href='/'" class="btn-back">← กลับหน้าหลัก</button>
+  </div>
+
+  <script>
+    const statusText = {
+      completed: "สำเร็จแล้ว",
+      cancelled: "ยกเลิก",
+      pending: "รอดำเนินการ",
+      accepted: "ยืนยันแล้ว",
+      cooking: "กำลังเตรียม",
+      delivering: "กำลังจัดส่ง"
+    };
+
+    async function loadHistory() {
+      try {
+        const res = await fetch("/api/history");
+        const data = await res.json();
+
+        const container = document.getElementById("history-list");
+
+        if (!data.success || data.orders.length === 0) {
+          container.innerHTML = "<p>ยังไม่มีคำสั่งซื้อ</p>";
+          return;
+        }
+
+        container.innerHTML = data.orders.map(order => `
+        <div class="order-card">
+          <div class="order-header">
+            <h3>คำสั่งซื้อ #${order.order_id}</h3>
+            <span class="status ${order.order_status}">
+                ${statusText[order.order_status] || order.order_status}
+            </span>
+          </div>
+
+          <p><strong>วันที่:</strong> ${new Date(order.created_at).toLocaleDateString("th-TH")}</p>
+          <p><strong>ยอดรวม:</strong> ${(order.final_amount || 0).toLocaleString()} บาท</p>
+          ${order.employee_name ? `<p><strong>ผู้จัดส่ง:</strong> ${order.employee_name}</p>` : ''}
+
+          <div class="order-items">
+            ${order.items.map(item => `
+              <div class="item">
+                <img src="/images/${item.image_url || "default.png"}" 
+                     alt="${item.product_name}" 
+                     onerror="this.src='/images/default.png'" />
+                <div class="item-info">
+                  <p class="product-name">${item.product_name}</p>
+                  <p class="product-detail">จำนวน: ${item.quantity} × ${item.price} บาท</p>
+                </div>
+              </div>
+            `).join("")}
+          </div>
+
+          ${order.reviews && order.reviews.length > 0 ? `
+            <div class="reviews">
+              <h4>⭐ รีวิวของคุณ</h4>
+              ${order.reviews.map(r => `
+                <div class="review">
+                  <p>"${r.comment}" ⭐ ${r.rating}</p>
+                  <small>${new Date(r.created_at).toLocaleDateString("th-TH")}</small>
+                </div>
+              `).join("")}
+            </div>
+          ` : ""}
+        </div>
+      `).join("");
+      } catch (err) {
+        console.error("โหลด history ไม่ได้:", err);
+        document.getElementById("history-list").innerHTML = "<p>เกิดข้อผิดพลาด</p>";
+      }
+    }
+
+    loadHistory();
+  </script>
+
+</body>
+</html>

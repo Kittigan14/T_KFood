@@ -1,0 +1,111 @@
+.error-container {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    min-height: 100vh;
+    text-align: center;
+    padding: 40px 20px;
+}
+
+.error-code {
+    font-size: 8rem;
+    font-weight: 900;
+    color: var(--color-primary);
+    opacity: 0.1;
+    line-height: 0.8;
+    margin-bottom: 20px;
+}
+
+.error-title {
+    font-size: 2.5rem;
+    font-weight: 700;
+    color: var(--color-primary);
+    margin-bottom: 20px;
+}
+
+.error-message {
+    font-size: 1.2rem;
+    color: var(--color-primary);
+    opacity: 0.7;
+    margin-bottom: 40px;
+    max-width: 500px;
+    line-height: 1.6;
+}
+
+.error-actions {
+    display: flex;
+    gap: 20px;
+    flex-wrap: wrap;
+    justify-content: center;
+}
+
+.btn-home {
+    background: var(--color-primary);
+    color: var(--color-background);
+    text-decoration: none;
+    padding: 14px 28px;
+    border-radius: var(--border-radius);
+    font-weight: 600;
+    transition: all var(--transition-duration) ease;
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.btn-home:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 8px 25px var(--shadow-soft);
+    opacity: 0.9;
+}
+
+.btn-back {
+    background: var(--color-accent);
+    color: var(--color-primary);
+    text-decoration: none;
+    padding: 14px 28px;
+    border-radius: var(--border-radius);
+    font-weight: 600;
+    transition: all var(--transition-duration) ease;
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    border: 1px solid var(--color-accent);
+}
+
+.btn-back:hover {
+    background: var(--color-primary);
+    color: var(--color-background);
+    transform: translateY(-2px);
+    box-shadow: 0 8px 25px var(--shadow-soft);
+}
+
+.error-illustration {
+    margin-bottom: 30px;
+    opacity: 0.6;
+}
+
+@media (max-width: 768px) {
+    .error-code {
+        font-size: 6rem;
+    }
+
+    .error-title {
+        font-size: 2rem;
+    }
+
+    .error-message {
+        font-size: 1.1rem;
+    }
+
+    .error-actions {
+        flex-direction: column;
+        align-items: center;
+    }
+
+    .btn-home,
+    .btn-back {
+        width: 200px;
+        justify-content: center;
+    }
+}

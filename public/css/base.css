@@ -111,6 +111,32 @@ a:hover {
   text-decoration: underline;
 }
 
+.employee-info {
+  background: #e3f2fd;
+  border: 1px solid #bbdefb;
+  border-radius: 12px;
+  padding: 16px;
+  margin: 16px 0;
+}
+
+.employee-info h4 {
+  color: var(--color-delivering);
+  margin-bottom: 12px;
+  font-size: 1.1rem;
+}
+
+.employee-info p {
+  margin: 8px 0;
+  font-size: 0.95rem;
+}
+
+.employee-info .loading {
+  text-align: center;
+  padding: 10px;
+  color: #666;
+  font-size: 0.9rem;
+}
+
 /* Responsive Design */
 @media (max-width: 768px) {
   .container {

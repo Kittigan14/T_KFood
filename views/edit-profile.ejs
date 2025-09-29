@@ -3,81 +3,150 @@
 
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>แก้ไขโปรไฟล์</title>
+  <title>โปรไฟล์ของฉัน</title>
   <link rel="stylesheet" href="/css/base.css">
   <link rel="stylesheet" href="/css/auth.css">
+  <link rel="stylesheet" href="/css/profile.css">
   <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
 </head>
 
 <body>
-  <div class="form-box">
-    <h2>แก้ไขโปรไฟล์</h2>
-    <form id="profileForm" class="form">
-      <input type="text" name="name" placeholder="ชื่อ" value="<%= customer.name %>" required>
-      <input type="email" name="email" placeholder="อีเมล" value="<%= customer.email %>" required>
-      <div class="password-wrapper">
-        <input type="password" name="password" id="profilePassword" placeholder="รหัสผ่านใหม่ (ถ้าไม่เปลี่ยนเว้นว่าง)">
-        <span class="toggle-password" data-target="profilePassword">
-          <img src="/images/icon/eye.png" alt="toggle">
-        </span>
-      </div>
-      <button type="submit" class="btn-submit">บันทึก</button>
-      <button type="button" class="btn-submit" onclick="window.history.back()">⬅ กลับ</button>
-    </form>
+  <div class="container">
+    <h2>ข้อมูลโปรไฟล์</h2>
+
+    <div class="profile-info">
+      <p>
+        <strong>ชื่อ:</strong> <%= customer.name %>
+        <button onclick="editField('name','<%= customer.name %>')">แก้ไข</button>
+      </p>
+
+      <p>
+        <strong>Email:</strong> <%= customer.email %>
+        <button onclick="editField('email','<%= customer.email %>')">แก้ไข</button>
+      </p>
+
+      <p>
+        <strong>เบอร์โทร:</strong> <%= customer.phone || '-' %>
+        <button onclick="editField('phone','<%= customer.phone || '' %>')">แก้ไข</button>
+      </p>
+
+      <p>
+        <strong>ที่อยู่:</strong> <%= customer.address || '-' %>
+        <button onclick="editField('address','<%= customer.address || '' %>')">แก้ไข</button>
+      </p>
+
+      <p>
+        <strong>รหัสผ่าน:</strong> ********
+        <button id="btnChangePassword">เปลี่ยนรหัสผ่าน</button>
+      </p>
+    </div>
+
+    <div class="back-container">
+      <button class="btn-back" onclick="window.location.href='/'">⬅ กลับหน้าหลัก</button>
+    </div>
   </div>
 
   <script>
-    // toggle password
-    document.querySelectorAll(".toggle-password").forEach(btn => {
-      btn.addEventListener("click", function () {
-        const targetId = this.getAttribute("data-target");
-        const input = document.getElementById(targetId);
-        const img = this.querySelector("img");
-
-        if (input.type === "password") {
-          input.type = "text";
-          img.src = "/images/icon/eye-crossed.png";
-        } else {
-          input.type = "password";
-          img.src = "/images/icon/eye.png";
-        }
-      });
-    });
-
-    // submit form
-    document.getElementById('profileForm').addEventListener('submit', async (e) => {
-      e.preventDefault();
-      const formData = new FormData(e.target);
-      const name = formData.get('name');
-      const email = formData.get('email');
-      const password = formData.get('password');
-
+    async function updateProfileField(field, value) {
       try {
-        const res = await fetch('/api/users/profile', {
-          method: 'PUT',
-          headers: { 'Content-Type': 'application/json' },
-          credentials: 'include',
-          body: JSON.stringify({ name, email, password })
+        const res = await fetch("/api/users/profile", {
+          method: "PUT",
+          headers: {
+            "Content-Type": "application/json"
+          },
+          credentials: "include",
+          body: JSON.stringify({
+            [field]: value
+          })
         });
 
         const data = await res.json();
 
-        if (data.success) {
+        if (res.ok && data.success) {
           Swal.fire({
             icon: "success",
             title: "สำเร็จ",
-            text: data.message,
-            timer: 1500,
-            showConfirmButton: false
-          }).then(() => {
-            window.location.href = "/";
-          });
+            text: data.message || "อัปเดตข้อมูลสำเร็จ",
+            confirmButtonColor: "#1a1a1a"
+          }).then(() => location.reload());
         } else {
-          Swal.fire({ icon: "error", title: "ผิดพลาด", text: data.error });
+          Swal.fire({
+            icon: "error",
+            title: "ผิดพลาด",
+            text: data.message || data.error || "ไม่สามารถบันทึกข้อมูลได้",
+            confirmButtonColor: "#1a1a1a"
+          });
         }
       } catch (err) {
-        Swal.fire({ icon: "error", title: "ผิดพลาด", text: err.message });
+        Swal.fire({
+          icon: "error",
+          title: "ผิดพลาด",
+          text: err.message,
+          confirmButtonColor: "#1a1a1a"
+        });
+      }
+    }
+
+
+    function editField(field, currentValue) {
+      Swal.fire({
+        title: `แก้ไข ${field}`,
+        input: "text",
+        inputValue: currentValue,
+        showCancelButton: true,
+        confirmButtonText: "บันทึก",
+        cancelButtonText: "ยกเลิก",
+        confirmButtonColor: "#1a1a1a",
+        cancelButtonColor: "#888",
+        preConfirm: (value) => {
+          if (!value) {
+            Swal.showValidationMessage("กรุณากรอกข้อมูล");
+          }
+          return value;
+        }
+      }).then((result) => {
+        if (result.isConfirmed) {
+          updateProfileField(field, result.value);
+        }
+      });
+    }
+
+    document.getElementById("btnChangePassword").addEventListener("click", async () => {
+      const {
+        value: formValues
+      } = await Swal.fire({
+        title: "เปลี่ยนรหัสผ่าน",
+        html: '<input id="swal-oldpass" type="password" class="swal2-input" placeholder="รหัสผ่านเดิม">' +
+          '<input id="swal-newpass" type="password" class="swal2-input" placeholder="รหัสผ่านใหม่">',
+        focusConfirm: false,
+        preConfirm: () => {
+          return {
+            oldPassword: document.getElementById("swal-oldpass").value,
+            newPassword: document.getElementById("swal-newpass").value,
+          };
+        }
+      });
+
+      if (formValues) {
+        try {
+          const res = await fetch("/api/users/change-password", {
+            method: "PUT",
+            headers: {
+              "Content-Type": "application/json"
+            },
+            credentials: "include",
+            body: JSON.stringify(formValues),
+          });
+
+          const data = await res.json();
+          if (data.success) {
+            Swal.fire("สำเร็จ", data.message, "success");
+          } else {
+            Swal.fire("ผิดพลาด", data.error, "error");
+          }
+        } catch (err) {
+          Swal.fire("ผิดพลาด", err.message, "error");
+        }
       }
     });
   </script>

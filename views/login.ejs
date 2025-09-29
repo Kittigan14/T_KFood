@@ -28,7 +28,6 @@
   </div>
 
   <script>
-    // Toggle password visibility
     document.querySelectorAll(".toggle-password").forEach(btn => {
       btn.addEventListener("click", function () {
         const targetId = this.getAttribute("data-target");
@@ -45,7 +44,6 @@
       });
     });
 
-    // Form validation styling
     const inputs = document.querySelectorAll('input');
     inputs.forEach(input => {
       input.addEventListener('blur', function () {
@@ -53,7 +51,6 @@
       });
     });
 
-    // Main login form handler
     document.getElementById('loginForm').addEventListener('submit', async (e) => {
       e.preventDefault();
 
@@ -64,7 +61,6 @@
       const submitButton = e.target.querySelector('button[type="submit"]');
       const originalText = submitButton.textContent;
 
-      // Show loading state
       submitButton.disabled = true;
       submitButton.textContent = 'กำลังเข้าสู่ระบบ...';
       submitButton.classList.add('loading');
@@ -84,7 +80,6 @@
         const data = await response.json();
 
         if (data.success) {
-          // Show success message
           Swal.fire({
             icon: "success",
             title: "เข้าสู่ระบบสำเร็จ",
@@ -92,11 +87,9 @@
             timer: 1500,
             showConfirmButton: false
           }).then(() => {
-            // Redirect to appropriate page
             window.location.href = data.redirectTo || '/';
           });
         } else {
-          // Show error message
           Swal.fire({
             icon: "error",
             title: "เข้าสู่ระบบไม่สำเร็จ",
@@ -111,14 +104,12 @@
           text: "ไม่สามารถเชื่อมต่อกับเซิร์ฟเวอร์ได้"
         });
       } finally {
-        // Reset button state
         submitButton.disabled = false;
         submitButton.textContent = originalText;
         submitButton.classList.remove('loading');
       }
     });
 
-    // Show notification helper (fallback)
     function showNotification(message, type = 'info') {
       let notification = document.getElementById('notification');
       if (!notification) {

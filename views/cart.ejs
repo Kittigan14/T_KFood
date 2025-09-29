@@ -2,15 +2,14 @@
 <html lang="th">
 
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>ตะกร้าสินค้า</title>
-  <link rel="stylesheet" href="/css/base.css">
-  <link rel="stylesheet" href="/css/cart.css">
-  <link rel="stylesheet" href="/css/notification.css">
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/css/base.css" />
+  <link rel="stylesheet" href="/css/cart.css" />
+  <link rel="stylesheet" href="/css/notification.css" />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
   <style>
-    /* Additional styles for improved checkout */
     .checkout-modal {
       position: fixed;
       top: 0;
@@ -211,7 +210,7 @@
 <body>
   <div class="container">
     <h2>
-      <img src="/images/icon/shopping-cart.png" alt="">
+      <img src="/images/icon/shopping-cart.png" alt="" />
       ตะกร้าสินค้า
     </h2>
 
@@ -239,17 +238,6 @@
             <textarea id="deliveryAddress" placeholder="กรุณากรอกที่อยู่สำหรับจัดส่งสินค้า" required></textarea>
           </div>
 
-          <!-- <div class="form-group">
-            <label for="paymentMethod">วิธีการชำระเงิน *</label>
-            <select id="paymentMethod" required>
-              <option value="">-- เลือกวิธีการชำระเงิน --</option>
-              <option value="cash">เงินสดปลายทาง</option>
-              <option value="credit_card">บัตรเครดิต</option>
-              <option value="mobile_banking">โมบายแบงกิ้ง</option>
-              <option value="promptpay">พร้อมเพย์</option>
-            </select>
-          </div> -->
-
           <div class="form-group">
             <label for="notes">หมายเหตุ (ถ้ามี)</label>
             <textarea id="notes" placeholder="ข้อมูลเพิ่มเติมสำหรับการจัดส่ง เช่น จุดสังเกต, เวลาที่สะดวก"></textarea>
@@ -257,13 +245,13 @@
 
           <div class="order-summary">
             <h4>สรุปคำสั่งซื้อ</h4>
-            <div id="orderSummaryContent">
-              <!-- Order summary will be populated here -->
-            </div>
+            <div id="orderSummaryContent"></div>
           </div>
 
           <div class="checkout-actions">
-            <button type="button" class="btn-cancel" onclick="closeCheckoutModal()">ยกเลิก</button>
+            <button type="button" class="btn-cancel" onclick="closeCheckoutModal()">
+              ยกเลิก
+            </button>
             <button type="submit" class="btn-checkout">ยืนยันสั่งซื้อ</button>
           </div>
         </form>
@@ -274,7 +262,7 @@
   <script>
     class ShoppingCart {
       constructor() {
-        this.container = document.getElementById('cart-container');
+        this.container = document.getElementById("cart-container");
         this.cartData = [];
         this.userCoupons = [];
         this.appliedCoupon = null;
@@ -284,10 +272,10 @@
       async loadCart() {
         try {
           this.showLoading();
-          const res = await fetch('/api/cart', {
+          const res = await fetch("/api/cart", {
             headers: {
-              'Accept': 'application/json'
-            }
+              Accept: "application/json",
+            },
           });
 
           if (res.status === 401) {
@@ -298,7 +286,7 @@
           const data = await res.json();
 
           if (!data.success) {
-            throw new Error(data.error || 'เกิดข้อผิดพลาดในการโหลดตะกร้า');
+            throw new Error(data.error || "เกิดข้อผิดพลาดในการโหลดตะกร้า");
           }
 
           this.cartData = data.cart || [];
@@ -312,17 +300,19 @@
           }
         } catch (err) {
           console.error("Error loading cart:", err);
-          this.showError("เกิดข้อผิดพลาดในการโหลดตะกร้าสินค้า: " + err.message);
+          this.showError(
+            "เกิดข้อผิดพลาดในการโหลดตะกร้าสินค้า: " + err.message
+          );
         }
       }
 
       async loadUserCoupons() {
         try {
-          let res = await fetch('/api/coupons/available', {
+          let res = await fetch("/api/coupons/available", {
             headers: {
-              'Accept': 'application/json'
+              Accept: "application/json",
             },
-            credentials: 'include'
+            credentials: "include",
           });
 
           let data = await res.json();
@@ -379,32 +369,53 @@
       }
 
       renderTable(cart) {
-        const rows = cart.map(item => `
+        const rows = cart
+          .map(
+            (item) => `
           <tr data-item-id="${item.product_id}">
             <td data-label="สินค้า" class="product-info">
-              <img src="/images/${item.image_url}" alt="${item.name}" class="product-image">
+              <img src="/images/${item.image_url}" alt="${
+                item.name
+              }" class="product-image">
               <span class="product-name">${item.name}</span>
             </td>
             <td data-label="ราคา" class="product-price">${item.price} บาท</td>
             <td data-label="จำนวน" class="quantity-cell">
               <div class="quantity-controls">
-                <button class="quantity-btn decrease" data-item-id="${item.product_id}" ${item.quantity <= 1 ? 'disabled' : ''}>-</button>
+                <button class="quantity-btn decrease" data-item-id="${
+                  item.product_id
+                }" ${item.quantity <= 1 ? "disabled" : ""}>-</button>
                 <div class="quantity-display">${item.quantity}</div>
-                <button class="quantity-btn increase" data-item-id="${item.product_id}">+</button>
+                <button class="quantity-btn increase" data-item-id="${
+                  item.product_id
+                }">+</button>
               </div>
             </td>
-            <td data-label="รวม" class="product-total">${(item.price * item.quantity)} บาท</td>
+            <td data-label="รวม" class="product-total">${
+              item.price * item.quantity
+            } บาท</td>
             <td data-label="จัดการ" class="actions">
-              <button class="remove-btn" data-item-id="${item.product_id}" title="ลบสินค้าออกจากตะกร้า">
+              <button class="remove-btn" data-item-id="${
+                item.product_id
+              }" title="ลบสินค้าออกจากตะกร้า">
                 ลบ
               </button>
             </td>
           </tr>
-        `).join('');
+        `
+          )
+          .join("");
 
-        const couponOptions = this.userCoupons.map(coupon =>
-          `<option value="${coupon.promo_code}" data-coupon='${JSON.stringify(coupon)}'>${coupon.name} (${coupon.promo_code})</option>`
-        ).join('');
+        const couponOptions = this.userCoupons
+          .map(
+            (coupon) =>
+            `<option value="${
+                  coupon.promo_code
+                }" data-coupon='${JSON.stringify(coupon)}'>${coupon.name} (${
+                  coupon.promo_code
+                })</option>`
+          )
+          .join("");
 
         this.container.innerHTML = `
           <table class="cart-table">
@@ -428,12 +439,16 @@
               <span>ค่าจัดส่ง:</span>
               <span>ฟรี</span>
             </div>
-            ${this.appliedCoupon ? `
+            ${
+              this.appliedCoupon
+                ? `
               <div class="cart-discount">
                 <span>ส่วนลด (${this.appliedCoupon.promo_code}):</span>
                 <span id="discount">-${this.appliedCoupon.discount.amount} บาท</span>
               </div>
-            ` : ''}
+            `
+                : ""
+            }
             <div class="cart-total-line">
               <span>รวมทั้งหมด:</span>
               <span id="total">0 บาท</span>
@@ -441,23 +456,33 @@
             
             <div class="coupon-section">
               <h4>คูปองส่วนลด</h4>
-              ${this.userCoupons.length > 0 ? `
+              ${
+                this.userCoupons.length > 0
+                  ? `
                 <div class="coupon-box">
                   <label for="couponSelect">เลือกคูปอง:</label>
                   <select id="couponSelect">
                     <option value="">-- เลือกคูปอง --</option>
                     ${couponOptions}
                   </select>
-                  <button id="applyCouponBtn" ${this.appliedCoupon ? 'disabled' : ''}>
-                    ${this.appliedCoupon ? 'ใช้คูปองแล้ว' : 'ใช้คูปอง'}
+                  <button id="applyCouponBtn" ${
+                    this.appliedCoupon ? "disabled" : ""
+                  }>
+                    ${this.appliedCoupon ? "ใช้คูปองแล้ว" : "ใช้คูปอง"}
                   </button>
-                  ${this.appliedCoupon ? `
+                  ${
+                    this.appliedCoupon
+                      ? `
                     <button id="removeCouponBtn" class="remove-coupon-btn">ยกเลิกคูปอง</button>
-                  ` : ''}
+                  `
+                      : ""
+                  }
                 </div>
-              ` : `
+              `
+                  : `
                 <p class="no-coupons">คุณยังไม่มีคูปองที่สามารถใช้ได้ <a href="/coupons">รับคูปองที่นี่</a></p>
-              `}
+              `
+              }
             </div>
 
             <div class="cart-actions">
@@ -467,83 +492,98 @@
           </div>
         `;
 
-        // Add event listeners
-        this.container.querySelectorAll('.quantity-btn').forEach(btn =>
-          btn.addEventListener('click', this.handleQuantityChange.bind(this))
-        );
-        this.container.querySelectorAll('.remove-btn').forEach(btn =>
-          btn.addEventListener('click', this.handleRemoveItem.bind(this))
-        );
+        this.container
+          .querySelectorAll(".quantity-btn")
+          .forEach((btn) =>
+            btn.addEventListener(
+              "click",
+              this.handleQuantityChange.bind(this)
+            )
+          );
+        this.container
+          .querySelectorAll(".remove-btn")
+          .forEach((btn) =>
+            btn.addEventListener("click", this.handleRemoveItem.bind(this))
+          );
 
-        // Add coupon event listeners
-        const applyCouponBtn = document.getElementById('applyCouponBtn');
-        const removeCouponBtn = document.getElementById('removeCouponBtn');
+        const applyCouponBtn = document.getElementById("applyCouponBtn");
+        const removeCouponBtn = document.getElementById("removeCouponBtn");
 
         if (applyCouponBtn) {
-          applyCouponBtn.addEventListener('click', this.handleApplyCoupon.bind(this));
+          applyCouponBtn.addEventListener(
+            "click",
+            this.handleApplyCoupon.bind(this)
+          );
         }
 
         if (removeCouponBtn) {
-          removeCouponBtn.addEventListener('click', this.handleRemoveCoupon.bind(this));
+          removeCouponBtn.addEventListener(
+            "click",
+            this.handleRemoveCoupon.bind(this)
+          );
         }
       }
 
       async handleApplyCoupon() {
-        const couponSelect = document.getElementById('couponSelect');
+        const couponSelect = document.getElementById("couponSelect");
         const selectedOption = couponSelect.selectedOptions[0];
 
         if (!selectedOption || !selectedOption.value) {
-          this.showNotification('กรุณาเลือกคูปอง', 'error');
+          this.showNotification("กรุณาเลือกคูปอง", "error");
           return;
         }
 
         const couponData = JSON.parse(selectedOption.dataset.coupon);
-        const subtotalText = document.getElementById('subtotal').textContent;
-        const orderAmount = parseInt(subtotalText.replace(' บาท', ''));
+        const subtotalText = document.getElementById("subtotal").textContent;
+        const orderAmount = parseInt(subtotalText.replace(" บาท", ""));
 
         try {
-          const applyCouponBtn = document.getElementById('applyCouponBtn');
+          const applyCouponBtn = document.getElementById("applyCouponBtn");
           applyCouponBtn.disabled = true;
-          applyCouponBtn.textContent = 'กำลังตรวจสอบ...';
+          applyCouponBtn.textContent = "กำลังตรวจสอบ...";
 
-          const response = await fetch('/api/promotions/validate', {
-            method: 'POST',
+          const response = await fetch("/api/promotions/validate", {
+            method: "POST",
             headers: {
-              'Content-Type': 'application/json',
-              'Accept': 'application/json'
+              "Content-Type": "application/json",
+              Accept: "application/json",
             },
             body: JSON.stringify({
               promo_code: couponData.promo_code,
               order_amount: orderAmount,
-              cart_items: this.cartData
-            })
+              cart_items: this.cartData,
+            }),
           });
 
           const result = await response.json();
 
           if (!response.ok || !result.valid) {
-            throw new Error(result.message || 'ไม่สามารถใช้คูปองได้');
+            throw new Error(result.message || "ไม่สามารถใช้คูปองได้");
           }
 
-          // Apply the coupon
           this.appliedCoupon = {
             promo_code: couponData.promo_code,
             discount: result.discount,
-            coupon: result.coupon
+            coupon: result.coupon,
           };
 
-          this.showNotification(result.message || 'ใช้คูปองเรียบร้อยแล้ว', 'success');
+          this.showNotification(
+            result.message || "ใช้คูปองเรียบร้อยแล้ว",
+            "success"
+          );
           this.updateCartTotal();
           this.renderCouponSection();
-
         } catch (err) {
           console.error("Error applying coupon:", err);
-          this.showNotification('เกิดข้อผิดพลาดในการใช้คูปอง: ' + err.message, 'error');
+          this.showNotification(
+            "เกิดข้อผิดพลาดในการใช้คูปอง: " + err.message,
+            "error"
+          );
 
-          const applyCouponBtn = document.getElementById('applyCouponBtn');
+          const applyCouponBtn = document.getElementById("applyCouponBtn");
           if (applyCouponBtn) {
             applyCouponBtn.disabled = false;
-            applyCouponBtn.textContent = 'ใช้คูปอง';
+            applyCouponBtn.textContent = "ใช้คูปอง";
           }
         }
       }
@@ -552,14 +592,16 @@
         this.appliedCoupon = null;
         this.updateCartTotal();
         this.renderCouponSection();
-        this.showNotification('ยกเลิกการใช้คูปองแล้ว', 'info');
+        this.showNotification("ยกเลิกการใช้คูปองแล้ว", "info");
       }
 
       renderCouponSection() {
-        const couponSection = document.querySelector('.coupon-section');
+        const couponSection = document.querySelector(".coupon-section");
         if (!couponSection) return;
 
-        const availableCoupons = (this.userCoupons || []).filter(coupon => coupon.status === 'available');
+        const availableCoupons = (this.userCoupons || []).filter(
+          (coupon) => coupon.status === "available"
+        );
 
         if (availableCoupons.length === 0) {
           couponSection.innerHTML = `
@@ -572,45 +614,64 @@
           return;
         }
 
-        const couponOptions = availableCoupons.map(coupon =>
-          `<option value="${coupon.promo_code}" data-coupon='${JSON.stringify(coupon)}'>
+        const couponOptions = availableCoupons
+          .map(
+            (coupon) =>
+            `<option value="${
+                  coupon.promo_code
+                }" data-coupon='${JSON.stringify(coupon)}'>
             ${coupon.name} (${coupon.promo_code})
           </option>`
-        ).join('');
+          )
+          .join("");
 
         couponSection.innerHTML = `
           <h4>คูปองส่วนลด</h4>
           <div class="coupon-box">
             <label for="couponSelect">เลือกคูปอง:</label>
-            <select id="couponSelect" ${this.appliedCoupon ? 'disabled' : ''}>
+            <select id="couponSelect" ${this.appliedCoupon ? "disabled" : ""}>
               <option value="">-- เลือกคูปอง --</option>
               ${couponOptions}
             </select>
-            <button id="applyCouponBtn" ${this.appliedCoupon ? 'disabled' : ''}>
-              ${this.appliedCoupon ? 'ใช้คูปองแล้ว' : 'ใช้คูปอง'}
+            <button id="applyCouponBtn" ${this.appliedCoupon ? "disabled" : ""}>
+              ${this.appliedCoupon ? "ใช้คูปองแล้ว" : "ใช้คูปอง"}
             </button>
-            ${this.appliedCoupon ? `
+            ${
+              this.appliedCoupon
+                ? `
               <button id="removeCouponBtn" class="remove-coupon-btn">ยกเลิกคูปอง</button>
-            ` : ''}
+            `
+                : ""
+            }
           </div>
-          ${this.appliedCoupon ? `
+          ${
+            this.appliedCoupon
+              ? `
             <div class="applied-coupon-info">
               <p>ใช้คูปอง: ${this.appliedCoupon.promo_code}</p>
               <p>ส่วนลด: ${this.appliedCoupon.discount.amount} บาท</p>
             </div>
-          ` : ''}
+          `
+              : ""
+          }
         `;
 
-        const applyCouponBtn = document.getElementById('applyCouponBtn');
-        const removeCouponBtn = document.getElementById('removeCouponBtn');
-        const couponSelect = document.getElementById('couponSelect');
+        const applyCouponBtn = document.getElementById("applyCouponBtn");
+        const removeCouponBtn = document.getElementById("removeCouponBtn");
+        const couponSelect = document.getElementById("couponSelect");
 
         if (applyCouponBtn) {
-          applyCouponBtn.addEventListener('click', this.handleApplyCoupon.bind(this));
+          applyCouponBtn.addEventListener(
+            "click",
+            this.handleApplyCoupon.bind(this)
+          );
         }
 
         if (removeCouponBtn) {
-          removeCouponBtn.addEventListener('click', this.handleRemoveCoupon.bind(this));
+          removeCouponBtn.addEventListener(
+            "click",
+            this.handleRemoveCoupon.bind(this)
+          );
         }
 
         if (couponSelect && this.appliedCoupon) {
@@ -623,62 +684,66 @@
         if (button.disabled) return;
 
         const itemId = parseInt(button.dataset.itemId);
-        const row = button.closest('tr');
-        const display = row.querySelector('.quantity-display');
+        const row = button.closest("tr");
+        const display = row.querySelector(".quantity-display");
         const currentQuantity = parseInt(display.textContent);
-        const isIncrease = button.classList.contains('increase');
-        let newQuantity = isIncrease ? currentQuantity + 1 : currentQuantity - 1;
+        const isIncrease = button.classList.contains("increase");
+        let newQuantity = isIncrease ?
+          currentQuantity + 1 :
+          currentQuantity - 1;
 
         if (newQuantity < 1) return;
 
-        // Disable buttons during update
-        const allButtons = row.querySelectorAll('.quantity-btn');
-        allButtons.forEach(btn => btn.disabled = true);
+        const allButtons = row.querySelectorAll(".quantity-btn");
+        allButtons.forEach((btn) => (btn.disabled = true));
 
-        // Optimistic update
         display.textContent = newQuantity;
         this.updateRowTotal(row, newQuantity);
         this.updateCartTotal();
 
         try {
-          const response = await fetch('/api/cart/update', {
-            method: 'POST',
+          const response = await fetch("/api/cart/update", {
+            method: "POST",
             headers: {
-              'Content-Type': 'application/json',
-              'Accept': 'application/json'
+              "Content-Type": "application/json",
+              Accept: "application/json",
             },
             body: JSON.stringify({
               itemId: itemId,
-              quantity: newQuantity
-            })
+              quantity: newQuantity,
+            }),
           });
 
           const data = await response.json();
 
           if (!response.ok || !data.success) {
-            throw new Error(data.error || 'เกิดข้อผิดพลาดในการอัปเดต');
+            throw new Error(data.error || "เกิดข้อผิดพลาดในการอัปเดต");
           }
 
-          this.showNotification(data.message || 'อัปเดตจำนวนสินค้าเรียบร้อย', 'success');
+          this.showNotification(
+            data.message || "อัปเดตจำนวนสินค้าเรียบร้อย",
+            "success"
+          );
 
-          // Update local data
-          const itemIndex = this.cartData.findIndex(item => item.product_id == itemId);
+          const itemIndex = this.cartData.findIndex(
+            (item) => item.product_id == itemId
+          );
           if (itemIndex !== -1) {
             this.cartData[itemIndex].quantity = newQuantity;
           }
-
         } catch (err) {
           console.error("Error updating quantity:", err);
-          // Revert optimistic update
           display.textContent = currentQuantity;
           this.updateRowTotal(row, currentQuantity);
           this.updateCartTotal();
-          this.showNotification('เกิดข้อผิดพลาดในการอัปเดตจำนวน: ' + err.message, 'error');
+          this.showNotification(
+            "เกิดข้อผิดพลาดในการอัปเดตจำนวน: " + err.message,
+            "error"
+          );
         } finally {
-          // Re-enable buttons
-          allButtons.forEach(btn => {
+          allButtons.forEach((btn) => {
             btn.disabled = false;
-            if (btn.classList.contains('decrease') && newQuantity <= 1) {
+            if (btn.classList.contains("decrease") && newQuantity <= 1) {
               btn.disabled = true;
             }
           });
@@ -688,172 +753,184 @@
       async handleRemoveItem(event) {
         const button = event.target;
         const itemId = parseInt(button.dataset.itemId);
-        const row = button.closest('tr');
+        const row = button.closest("tr");
 
-        // Confirm removal
-        if (!confirm('คุณต้องการลบสินค้านี้ออกจากตะกร้าหรือไม่?')) {
+        if (!confirm("คุณต้องการลบสินค้านี้ออกจากตะกร้าหรือไม่?")) {
           return;
         }
 
-        // Disable button during removal
         button.disabled = true;
-        button.textContent = 'กำลังลบ...';
+        button.textContent = "กำลังลบ...";
 
-        // Add removal animation
-        row.style.transition = 'all 0.3s ease';
-        row.style.transform = 'translateX(-100%)';
-        row.style.opacity = '0';
+        row.style.transition = "all 0.3s ease";
+        row.style.transform = "translateX(-100%)";
+        row.style.opacity = "0";
 
         try {
           const response = await fetch(`/api/cart/remove/${itemId}`, {
-            method: 'DELETE',
+            method: "DELETE",
             headers: {
-              'Accept': 'application/json'
-            }
+              Accept: "application/json",
+            },
           });
 
           const data = await response.json();
 
           if (!response.ok || !data.success) {
-            throw new Error(data.error || 'เกิดข้อผิดพลาดในการลบสินค้า');
+            throw new Error(data.error || "เกิดข้อผิดพลาดในการลบสินค้า");
           }
 
           setTimeout(() => {
             row.remove();
 
-            // Update local data
-            this.cartData = this.cartData.filter(item => item.product_id != itemId);
+            this.cartData = this.cartData.filter(
+              (item) => item.product_id != itemId
+            );
 
             this.updateCartTotal();
-            this.showNotification(data.message || 'ลบสินค้าออกจากตะกร้าเรียบร้อย', 'success');
+            this.showNotification(
+              data.message || "ลบสินค้าออกจากตะกร้าเรียบร้อย",
+              "success"
+            );
 
-            // Check if cart is now empty
-            if (document.querySelectorAll('.cart-table tbody tr').length === 0) {
+            if (
+              document.querySelectorAll(".cart-table tbody tr").length === 0
+            ) {
               this.renderEmpty();
             }
           }, 300);
-
         } catch (err) {
           console.error("Error removing item:", err);
-          // Revert animation
-          row.style.transform = 'translateX(0)';
-          row.style.opacity = '1';
+          row.style.transform = "translateX(0)";
+          row.style.opacity = "1";
           button.disabled = false;
-          button.textContent = 'ลบ';
-          this.showNotification('เกิดข้อผิดพลาดในการลบสินค้า: ' + err.message, 'error');
+          button.textContent = "ลบ";
+          this.showNotification(
+            "เกิดข้อผิดพลาดในการลบสินค้า: " + err.message,
+            "error"
+          );
         }
       }
 
       updateRowTotal(row, quantity) {
-        const priceText = row.querySelector('.product-price').textContent;
-        const price = parseInt(priceText.replace(' บาท', ''));
-        const totalElement = row.querySelector('.product-total');
-        totalElement.textContent = (price * quantity) + ' บาท';
+        const priceText = row.querySelector(".product-price").textContent;
+        const price = parseInt(priceText.replace(" บาท", ""));
+        const totalElement = row.querySelector(".product-total");
+        totalElement.textContent = price * quantity + " บาท";
       }
 
       updateCartTotal() {
         let subtotal = 0;
-        document.querySelectorAll('.cart-table tbody tr').forEach(row => {
-          const totalText = row.querySelector('.product-total').textContent;
-          const total = parseInt(totalText.replace(' บาท', ''));
+        document.querySelectorAll(".cart-table tbody tr").forEach((row) => {
+          const totalText = row.querySelector(".product-total").textContent;
+          const total = parseInt(totalText.replace(" บาท", ""));
           subtotal += total;
         });
 
-        const subtotalElement = document.getElementById('subtotal');
-        const totalElement = document.getElementById('total');
+        const subtotalElement = document.getElementById("subtotal");
+        const totalElement = document.getElementById("total");
 
         if (subtotalElement) {
-          subtotalElement.textContent = subtotal + ' บาท';
+          subtotalElement.textContent = subtotal + " บาท";
         }
 
         let finalTotal = subtotal;
 
-        // Apply discount if coupon is applied
         if (this.appliedCoupon && this.appliedCoupon.discount) {
-          finalTotal = Math.max(0, subtotal - this.appliedCoupon.discount.amount);
+          finalTotal = Math.max(
+            0,
+            subtotal - this.appliedCoupon.discount.amount
+          );
 
-          // Update discount display in summary
-          const cartSummary = document.querySelector('.cart-summary');
-          const existingDiscount = cartSummary.querySelector('.cart-discount');
+          const cartSummary = document.querySelector(".cart-summary");
+          const existingDiscount =
+            cartSummary.querySelector(".cart-discount");
 
           if (existingDiscount) {
-            existingDiscount.querySelector('span:last-child').textContent =
-              `-${this.appliedCoupon.discount.amount} บาท`;
+            existingDiscount.querySelector(
+              "span:last-child"
+            ).textContent = `-${this.appliedCoupon.discount.amount} บาท`;
           } else if (cartSummary) {
-            const discountRow = document.createElement('div');
-            discountRow.className = 'cart-discount';
+            const discountRow = document.createElement("div");
+            discountRow.className = "cart-discount";
             discountRow.innerHTML = `
               <span>ส่วนลด (${this.appliedCoupon.promo_code}):</span>
               <span>-${this.appliedCoupon.discount.amount} บาท</span>
             `;
-            const totalLine = cartSummary.querySelector('.cart-total-line');
+            const totalLine = cartSummary.querySelector(".cart-total-line");
             if (totalLine) {
               cartSummary.insertBefore(discountRow, totalLine);
             }
           }
         } else {
-          // Remove discount row if no coupon applied
-          const existingDiscount = document.querySelector('.cart-discount');
+          const existingDiscount = document.querySelector(".cart-discount");
           if (existingDiscount) {
             existingDiscount.remove();
           }
         }
 
         if (totalElement) {
-          totalElement.textContent = finalTotal + ' บาท';
+          totalElement.textContent = finalTotal + " บาท";
         }
       }
 
-      showNotification(message, type = 'info') {
-        const notification = document.getElementById('notification');
-        const messageElement = document.getElementById('notificationMessage');
+      showNotification(message, type = "info") {
+        const notification = document.getElementById("notification");
+        const messageElement = document.getElementById("notificationMessage");
 
         if (!notification || !messageElement) return;
 
         messageElement.textContent = message;
         notification.className = `notification ${type}`;
 
-        notification.classList.add('show');
+        notification.classList.add("show");
 
         setTimeout(() => {
-          notification.classList.remove('show');
+          notification.classList.remove("show");
         }, 3000);
       }
 
-
       getCartSummary() {
-        const subtotal = parseInt(document.getElementById('subtotal').textContent.replace(' บาท', ''));
-        const finalTotal = parseInt(document.getElementById('total').textContent.replace(' บาท', ''));
-        const discount = this.appliedCoupon ? this.appliedCoupon.discount.amount : 0;
+        const subtotal = parseInt(
+          document.getElementById("subtotal").textContent.replace(" บาท", "")
+        );
+        const finalTotal = parseInt(
+          document.getElementById("total").textContent.replace(" บาท", "")
+        );
+        const discount = this.appliedCoupon ?
+          this.appliedCoupon.discount.amount :
+          0;
 
         return {
           subtotal,
           discount,
           finalTotal,
           appliedCoupon: this.appliedCoupon,
-          items: this.cartData
+          items: this.cartData,
         };
       }
     }
 
-    // Checkout functions
     function openCheckoutModal() {
-      const modal = document.getElementById('checkoutModal');
+      const modal = document.getElementById("checkoutModal");
       const summary = shoppingCart.getCartSummary();
 
-      // Populate order summary
-      const summaryContent = document.getElementById('orderSummaryContent');
+      const summaryContent = document.getElementById("orderSummaryContent");
       summaryContent.innerHTML = `
         <div class="summary-line">
           <span>ราคาสินค้า:</span>
           <span>${summary.subtotal} บาท</span>
         </div>
-        ${summary.discount > 0 ? `
+        ${
+          summary.discount > 0
+            ? `
           <div class="summary-line">
             <span>ส่วนลด:</span>
             <span>-${summary.discount} บาท</span>
           </div>
-        ` : ''}
+        `
+            : ""
+        }
         <div class="summary-line">
           <span>ค่าจัดส่ง:</span>
           <span>ฟรี</span>
@@ -864,95 +941,75 @@
         </div>
       `;
 
-      modal.style.display = 'flex';
+      modal.style.display = "flex";
     }
 
     function closeCheckoutModal() {
-      document.getElementById('checkoutModal').style.display = 'none';
+      document.getElementById("checkoutModal").style.display = "none";
     }
 
-    // Handle checkout form submission
-    document.getElementById('checkoutForm').addEventListener('submit', async function (e) {
-      e.preventDefault();
+    document
+      .getElementById("checkoutForm")
+      .addEventListener("submit", async function (e) {
+        e.preventDefault();
 
-      const loading = document.getElementById('checkoutLoading');
-      loading.style.display = 'flex';
+        const loading = document.getElementById("checkoutLoading");
+        loading.style.display = "flex";
 
-      const deliveryAddress = document.getElementById('deliveryAddress').value.trim();
-      // const paymentMethod = document.getElementById('paymentMethod').value;
-      const notes = document.getElementById('notes').value.trim();
+        const deliveryAddress = document
+          .getElementById("deliveryAddress")
+          .value.trim();
+        const notes = document.getElementById("notes").value.trim();
 
-      if (!deliveryAddress) {
-        loading.style.display = 'none';
-        alert('กรุณากรอกข้อมูลให้ครบถ้วน');
-        return;
-      }
-
-      try {
-        const summary = shoppingCart.getCartSummary();
-
-        const orderData = {
-          delivery_address: deliveryAddress,
-          // payment_method: paymentMethod,
-          notes: notes,
-          promo_code: summary.appliedCoupon ? summary.appliedCoupon.promo_code : null
-        };
-
-        const response = await fetch('/api/orders', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json'
-          },
-          credentials: 'include',
-          body: JSON.stringify(orderData)
-        });
-
-        const result = await response.json();
-
-        if (!response.ok || !result.success) {
-          throw new Error(result.error || 'ไม่สามารถสร้างคำสั่งซื้อได้');
+        if (!deliveryAddress) {
+          loading.style.display = "none";
+          alert("กรุณากรอกข้อมูลให้ครบถ้วน");
+          return;
         }
 
-        // Show success message
-        document.querySelector('.checkout-content').innerHTML = `
-          <div class="success-message">
-            <h3>สั่งซื้อสำเร็จ</h3>
-            <p>คำสั่งซื้อของคุณได้รับการยืนยันแล้ว</p>
-            <div class="order-id">หมายเลขคำสั่งซื้อ: #${result.order_id}</div>
-            <p>คุณสามารถติดตามสถานะการจัดส่งได้ที่หน้าประวัติการสั่งซื้อ</p>
-            <div class="checkout-actions">
-              <a href="/orders" class="btn-checkout">ดูประวัติการสั่งซื้อ</a>
-              <a href="/" class="btn-cancel">กลับหน้าแรก</a>
-            </div>
-          </div>
-        `;
+        try {
+          const summary = shoppingCart.getCartSummary();
 
-        // Clear cart display
-        shoppingCart.container.innerHTML = `
-          <div class="empty-cart">
-            <h3>สั่งซื้อสำเร็จ</h3>
-            <p>ขอบคุณสำหรับการสั่งซื้อ คำสั่งซื้อหมายเลข #${result.order_id}</p>
-            <a href="/orders" class="continue-shopping-btn">ดูประวัติการสั่งซื้อ</a>
-          </div>
-        `;
+          const orderData = {
+            delivery_address: deliveryAddress,
+            notes: notes,
+            promo_code: summary.appliedCoupon ?
+              summary.appliedCoupon.promo_code :
+              null,
+          };
 
-      } catch (err) {
-        console.error('Checkout error:', err);
-        loading.style.display = 'none';
-        alert('เกิดข้อผิดพลาด: ' + err.message);
-      }
-    });
+          const response = await fetch("/api/orders", {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+            },
+            credentials: "include",
+            body: JSON.stringify(orderData),
+          });
 
-    // Initialize shopping cart
-    const shoppingCart = new ShoppingCart();
+          const result = await response.json();
 
-    // Close modal when clicking outside
-    document.addEventListener('click', (e) => {
-      const modal = document.getElementById('checkoutModal');
-      if (e.target === modal) {
-        closeCheckoutModal();
-      }
-    });
+          if (!response.ok || !result.success) {
+            throw new Error(result.error || "ไม่สามารถสร้างคำสั่งซื้อได้");
+          }
+
+          window.location.href = `/orders/${result.order_id}/pay`;
+
+        } catch (err) {
+          console.error("Checkout error:", err);
+          loading.style.display = "none";
+          alert("เกิดข้อผิดพลาด: " + err.message);
+        }
+      });
+
+      const shoppingCart = new ShoppingCart();
+
+      document.addEventListener("click", (e) => {
+        const modal = document.getElementById("checkoutModal");
+        if (e.target === modal) {
+          closeCheckoutModal();
+        }
+      });
   </script>
 </body>
 

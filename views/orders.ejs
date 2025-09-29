@@ -104,12 +104,35 @@
             letter-spacing: 0.5px;
         }
 
-        .status-pending { background: #fef3c7; color: #92400e; }
-        .status-accepted { background: #d1fae5; color: #065f46; }
-        .status-cooking { background: #fef3c7; color: #92400e; }
-        .status-delivering { background: #dbeafe; color: #1e40af; }
-        .status-completed { background: #d1fae5; color: #065f46; }
-        .status-cancelled { background: #fee2e2; color: #991b1b; }
+        .status-pending {
+            background: #fef3c7;
+            color: #92400e;
+        }
+
+        .status-accepted {
+            background: #d1fae5;
+            color: #065f46;
+        }
+
+        .status-cooking {
+            background: #fef3c7;
+            color: #92400e;
+        }
+
+        .status-delivering {
+            background: #dbeafe;
+            color: #1e40af;
+        }
+
+        .status-completed {
+            background: #d1fae5;
+            color: #065f46;
+        }
+
+        .status-cancelled {
+            background: #fee2e2;
+            color: #991b1b;
+        }
 
         .order-info {
             display: grid;
@@ -195,8 +218,15 @@
         }
 
         @keyframes pulse {
-            0%, 100% { transform: scale(1); }
-            50% { transform: scale(1.05); }
+
+            0%,
+            100% {
+                transform: scale(1);
+            }
+
+            50% {
+                transform: scale(1.05);
+            }
         }
 
         .status-label {
@@ -290,14 +320,32 @@
             transition: all 0.3s ease;
         }
 
-        .btn-primary { background: #3b82f6; color: white; }
-        .btn-primary:hover { background: #2563eb; }
+        .btn-primary {
+            background: #3b82f6;
+            color: white;
+        }
 
-        .btn-success { background: #10b981; color: white; }
-        .btn-success:hover { background: #059669; }
+        .btn-primary:hover {
+            background: #2563eb;
+        }
 
-        .btn-secondary { background: #6b7280; color: white; }
-        .btn-secondary:hover { background: #4b5563; }
+        .btn-success {
+            background: #10b981;
+            color: white;
+        }
+
+        .btn-success:hover {
+            background: #059669;
+        }
+
+        .btn-secondary {
+            background: #6b7280;
+            color: white;
+        }
+
+        .btn-secondary:hover {
+            background: #4b5563;
+        }
 
         /* Modal Styles */
         .modal-overlay {
@@ -595,6 +643,7 @@
     <!-- Review Modal -->
     <div id="reviewModal" class="modal-overlay review-modal">
         <div class="modal-content">
+            <span class="modal-close" onclick="orderTracker.closeReviewModal()">&times;</span>
             <h3>✍️ รีวิวสินค้า</h3>
             <div id="reviewContent">
                 <!-- Review form will be populated here -->
@@ -652,64 +701,134 @@
             }
 
             renderOrders(orders) {
-                this.container.innerHTML = orders.map(order => {
-                    const safeStatus = String(order.order_status)
-                        .toLowerCase()
-                        .replace(/\s+/g, '-')
-                        .replace(/[^a-z0-9\-_]/g, '');
+            const activeOrders = orders.filter(order => {
+                if (['pending', 'accepted', 'cooking', 'delivering'].includes(order.order_status)) {
+                return true;
+                }
+                
+                if (order.order_status === 'completed') {
+                const totalItems = order.items ? order.items.length : 0;
+                const reviewedItems = order.reviews ? order.reviews.length : 0;
+                return reviewedItems < totalItems;
+                }
+                
+                return false;
+            });
 
-                    return `
-                        <div class="order-card" data-order-id="${order.order_id}">
-                            <div class="order-header">
-                                <h3>Order #${order.order_id}</h3>
-                                <span class="status-badge status-${safeStatus}">${this.getStatusText(order.order_status)}</span>
-                            </div>
-                            
-                            <div class="order-info">
-                                <p><strong>วันที่:</strong> ${new Date(order.created_at).toLocaleString("th-TH")}</p>
-                                <p><strong>ที่อยู่จัดส่ง:</strong> ${order.delivery_address || 'รับที่ร้าน'}</p>
-                                <p><strong>วิธีชำระเงิน:</strong> ${this.getPaymentMethodText(order.payment_method)}</p>
-                                <p><strong>ยอดรวม:</strong> ${order.final_amount} บาท</p>
-                            </div>
+            if (activeOrders.length === 0) {
+                this.showEmptyState();
+                return;
+            }
 
-                            ${this.renderStatusTracker(order)}
+            this.container.innerHTML = activeOrders.map(order => {
+                const safeStatus = String(order.order_status)
+                .toLowerCase()
+                .replace(/\s+/g, '-')
+                .replace(/[^a-z0-9\-_]/g, '');
 
-                            <div class="order-items">
-                                <h4>สินค้า</h4>
-                                <ul>
-                                    ${order.items && order.items.length > 0 ? order.items.map(item => `
-                                        <li>
-                                            <img src="/images/${item.image_url}" alt="${item.product_name}" onerror="this.src='/images/default.png'">
-                                            <div class="item-details">
-                                                <div class="item-name">${item.product_name}</div>
-                                                <div class="item-price">จำนวน: ${item.quantity} x ${item.price} บาท</div>
-                                            </div>
-                                        </li>
-                                    `).join('') : '<li>ไม่มีสินค้า</li>'}
-                                </ul>
-                            </div>
+                return `
+                <div class="order-card" data-order-id="${order.order_id}">
+                    <div class="order-header">
+                    <h3>Order #${order.order_id}</h3>
+                    <span class="status-badge status-${safeStatus}">
+                        ${this.getStatusText(order.order_status)}
+                    </span>
+                    </div>
+                    
+                    <div class="order-info">
+                    <p><strong>วันที่:</strong> ${new Date(order.created_at).toLocaleString("th-TH")}</p>
+                    <p><strong>ที่อยู่จัดส่ง:</strong> ${order.delivery_address || 'รับที่ร้าน'}</p>
+                    <p><strong>วิธีชำระเงิน:</strong> ${this.getPaymentMethodText(order.payment_method)}</p>
+                    <p><strong>ยอดรวม:</strong> ${order.final_amount} บาท</p>
+                    </div>
 
-                            ${this.renderOrderActions(order)}
-                            ${this.renderExistingReviews(order)}
-                        </div>
-                    `;
-                }).join("");
+                    ${this.renderStatusTracker(order)}
+                    ${order.order_status === 'delivering' ? this.renderEmployeeInfo(order) : ''}
+                    ${this.renderOrderItems(order)}
+                    ${this.renderOrderActions(order)}
+                </div>
+                `;
+            }).join("");
 
-                // Attach event listeners after rendering
                 this.attachEventListeners();
+                this.loadEmployeeData();
+            }
+
+            renderEmployeeInfo(order) {
+                return `
+                    <div class="employee-info" id="employee-info-${order.order_id}">
+                    <h4>ข้อมูลผู้ส่งสินค้า</h4>
+                    <div class="loading">กำลังโหลดข้อมูล...</div>
+                    </div>
+                `;
+            }
+
+            async loadEmployeeData() {
+                const employeeInfos = document.querySelectorAll('.employee-info');
+                
+                for (let info of employeeInfos) {
+                    const orderId = info.id.split('-')[2];
+                    
+                    try {
+                    const response = await fetch(`/api/orders/${orderId}/employee`, {
+                        credentials: 'include'
+                    });
+                    
+                    const data = await response.json();
+                    
+                    if (data.success && data.employee) {
+                        info.innerHTML = `
+                        <h4>ข้อมูลผู้ส่งสินค้า</h4>
+                        <p><strong>ชื่อ:</strong> ${data.employee.name}</p>
+                        <p><strong>เบอร์โทร:</strong> ${data.employee.phone || 'ไม่ระบุ'}</p>
+                        `;
+                    } else {
+                        info.innerHTML = `
+                        <h4>ข้อมูลผู้ส่งสินค้า</h4>
+                        <p>กำลังจัดหาผู้ส่งสินค้า...</p>
+                        `;
+                    }
+                    } catch (err) {
+                    console.error('Error loading employee data:', err);
+                    info.innerHTML = `
+                        <h4>ข้อมูลผู้ส่งสินค้า</h4>
+                        <p>ไม่สามารถโหลดข้อมูลได้</p>
+                    `;
+                    }
+                }
             }
 
             renderStatusTracker(order) {
-                const statuses = [
-                    { key: 'pending', label: 'รับออเดอร์', icon: '📝' },
-                    { key: 'accepted', label: 'ยืนยันแล้ว', icon: '✅' },
-                    { key: 'cooking', label: 'กำลังเตรียม', icon: '👨‍🍳' },
-                    { key: 'delivering', label: 'กำลังจัดส่ง', icon: '🚚' },
-                    { key: 'completed', label: 'เสร็จสิ้น', icon: '🎉' }
+                const statuses = [{
+                        key: 'pending',
+                        label: 'รับออเดอร์',
+                        icon: '📝'
+                    },
+                    {
+                        key: 'accepted',
+                        label: 'ยืนยันแล้ว',
+                        icon: '✅'
+                    },
+                    {
+                        key: 'cooking',
+                        label: 'กำลังเตรียม',
+                        icon: '👨‍🍳'
+                    },
+                    {
+                        key: 'delivering',
+                        label: 'กำลังจัดส่ง',
+                        icon: '🚚'
+                    },
+                    {
+                        key: 'completed',
+                        label: 'เสร็จสิ้น',
+                        icon: '🎉'
+                    }
                 ];
 
                 const currentStatusIndex = statuses.findIndex(s => s.key === order.order_status);
-                const progressWidth = currentStatusIndex >= 0 ? (currentStatusIndex / (statuses.length - 1)) * 100 : 0;
+                const progressWidth = currentStatusIndex >= 0 ? (currentStatusIndex / (statuses.length - 1)) * 100 :
+                    0;
 
                 return `
                     <div class="status-tracker">
@@ -728,27 +847,51 @@
                 `;
             }
 
+            renderOrderItems(order) {
+                return `
+                    <div class="order-items">
+                        <h4>สินค้า</h4>
+                        <ul>
+                            ${order.items && order.items.length > 0 ? order.items.map(item => `
+                                <li>
+                                    <img src="/images/${item.image_url}" alt="${item.product_name}" onerror="this.src='/images/default.png'">
+                                    <div class="item-details">
+                                        <div class="item-name">${item.product_name}</div>
+                                        <div class="item-price">จำนวน: ${item.quantity} x ${item.price} บาท</div>
+                                    </div>
+                                </li>
+                            `).join('') : '<li>ไม่มีสินค้า</li>'}
+                        </ul>
+                    </div>
+                `;
+            }
+
             renderOrderActions(order) {
-                let actions = [];
+            let actions = [];
 
-                if (order.order_status === 'pending' && order.payment_status === 'pending') {
-                    actions.push(`<button class="action-btn btn-primary" onclick="window.location.href='/orders/${order.order_id}/pay'">ชำระเงิน</button>`);
+            if (order.order_status === 'pending' && order.payment_status === 'pending') {
+                actions.push(
+                `<button class="action-btn btn-primary" onclick="window.location.href='/orders/${order.order_id}/pay'">ชำระเงิน</button>`
+                );
+            }
+
+            if (order.order_status === 'delivering') {
+                actions.push(
+                `<button class="action-btn btn-success" onclick="orderTracker.confirmDelivery(${order.order_id})">ยืนยันการรับสินค้า</button>`
+                );
+            }
+
+            if (order.order_status === 'completed') {
+                const totalItems = order.items ? order.items.length : 0;
+                const reviewedItems = order.reviews ? order.reviews.length : 0;
+                
+                if (reviewedItems < totalItems) {
+                    actions.push(
+                        `<button class="action-btn btn-success" onclick="orderTracker.confirmDelivery(${order.order_id})">ยืนยันการรับสินค้า</button>`
+                    );
                 }
-
-                if (order.order_status === 'delivering') {
-                    actions.push(`<button class="action-btn btn-success" onclick="orderTracker.confirmDelivery(${order.order_id})">ยืนยันการรับสินค้า</button>`);
-                }
-
-                if (order.order_status === 'completed') {
-                    actions.push(`<button class="action-btn btn-primary" onclick="orderTracker.openReviewModal(${order.order_id})">เขียนรีวิว</button>`);
-                }
-
-                // Simulate progress button (for demo)
-                if (['pending', 'accepted', 'cooking'].includes(order.order_status)) {
-                    actions.push(`<button class="action-btn btn-secondary" onclick="orderTracker.simulateProgress(${order.order_id})">จำลองความคืบหน้า</button>`);
-                }
-
-                return actions.length > 0 ? `<div class="order-actions">${actions.join('')}</div>` : '';
+            }
+            return actions.length > 0 ? `<div class="order-actions">${actions.join('')}</div>` : '';
             }
 
             renderExistingReviews(order) {
@@ -774,7 +917,6 @@
             }
 
             attachEventListeners() {
-                // Delivery modal event listeners
                 document.getElementById('confirmDelivery').onclick = () => {
                     this.processDeliveryConfirmation();
                 };
@@ -783,7 +925,6 @@
                     this.closeDeliveryModal();
                 };
 
-                // Click outside modal to close
                 document.addEventListener('click', (e) => {
                     if (e.target.classList.contains('modal-overlay')) {
                         this.closeAllModals();
@@ -792,13 +933,12 @@
             }
 
             startStatusTracking() {
-                // Poll for status updates every 30 seconds for active orders
                 const activeOrders = document.querySelectorAll('.order-card');
-                
+
                 activeOrders.forEach(card => {
                     const orderId = card.dataset.orderId;
                     const statusBadge = card.querySelector('.status-badge');
-                    
+
                     if (statusBadge && !statusBadge.classList.contains('status-completed')) {
                         const timer = setInterval(async () => {
                             try {
@@ -806,9 +946,8 @@
                                     credentials: 'include'
                                 });
                                 const data = await res.json();
-                                
+
                                 if (data.success && data.status !== statusBadge.textContent) {
-                                    // Reload orders if status changed
                                     this.loadOrders();
                                     clearInterval(timer);
                                 }
@@ -830,9 +969,8 @@
                     });
 
                     const data = await res.json();
-                    
+
                     if (data.success) {
-                        // Show notification and reload after a short delay
                         setTimeout(() => {
                             this.loadOrders();
                         }, 2000);
@@ -848,69 +986,91 @@
             }
 
             async processDeliveryConfirmation() {
-                if (!this.currentOrder) return;
+                if (!this.currentOrder) {
+                    console.error('No current order set');
+                    return;
+                }
+
+                const orderId = this.currentOrder;
 
                 try {
-                    const res = await fetch(`/api/orders/${this.currentOrder}/status`, {
+                    const res = await fetch(`/api/orders/${orderId}/status`, {
                         method: 'PUT',
                         headers: {
                             'Content-Type': 'application/json'
                         },
                         credentials: 'include',
-                        body: JSON.stringify({ status: 'completed' })
+                        body: JSON.stringify({
+                            status: 'completed'
+                        })
                     });
 
                     const data = await res.json();
-                    
+
                     if (data.success) {
                         this.closeDeliveryModal();
+                        
                         setTimeout(() => {
-                            this.loadOrders();
-                            this.openReviewModal(this.currentOrder);
-                        }, 1000);
+                            this.openReviewModal(orderId);
+                        }, 300);
+                    } else {
+                        alert('ไม่สามารถอัพเดทสถานะได้: ' + (data.error || 'Unknown error'));
                     }
                 } catch (err) {
                     console.error('Delivery confirmation error:', err);
+                    alert('เกิดข้อผิดพลาด: ' + err.message);
                 }
             }
 
             closeDeliveryModal() {
                 document.getElementById('deliveryModal').style.display = 'none';
-                this.currentOrder = null;
             }
 
             async openReviewModal(orderId) {
                 this.currentOrder = orderId;
-                
+
                 try {
-                    // Get order details and existing reviews
                     const orderRes = await fetch(`/api/orders/${orderId}`, {
                         credentials: 'include'
                     });
+                    
+                    if (!orderRes.ok) {
+                        throw new Error(`HTTP error! status: ${orderRes.status}`);
+                    }
+                    
                     const orderData = await orderRes.json();
 
                     if (!orderData.success) {
-                        throw new Error('ไม่สามารถโหลดข้อมูลคำสั่งซื้อได้');
+                        throw new Error(orderData.error || 'ไม่สามารถโหลดข้อมูลคำสั่งซื้อได้');
+                    }
+
+                    if (!orderData.order || !orderData.order.items || orderData.order.items.length === 0) {
+                        throw new Error('ไม่พบสินค้าในคำสั่งซื้อนี้');
                     }
 
                     const reviewRes = await fetch(`/api/orders/${orderId}/reviews`, {
                         credentials: 'include'
                     });
-                    const reviewData = await reviewRes.json();
-                    const existingReviews = reviewData.success ? reviewData.reviews : [];
+                    
+                    let existingReviews = [];
+                    if (reviewRes.ok) {
+                        const reviewData = await reviewRes.json();
+                        existingReviews = reviewData.success ? reviewData.reviews : [];
+                    }
 
                     this.renderReviewForm(orderData.order.items, existingReviews);
                     document.getElementById('reviewModal').style.display = 'flex';
 
                 } catch (err) {
                     console.error('Error opening review modal:', err);
-                    alert('เกิดข้อผิดพลาดในการโหลดฟอร์มรีวิว');
+                    alert('เกิดข้อผิดพลาดในการโหลดฟอร์มรีวิว: ' + err.message);
+                    this.currentOrder = null;
                 }
             }
 
             renderReviewForm(items, existingReviews) {
                 const reviewContent = document.getElementById('reviewContent');
-                
+
                 const reviewsMap = new Map();
                 existingReviews.forEach(review => {
                     reviewsMap.set(review.product_id, review);
@@ -961,14 +1121,13 @@
             }
 
             attachReviewEventListeners() {
-                // Star rating listeners
                 document.querySelectorAll('.star-rating').forEach(rating => {
                     const stars = rating.querySelectorAll('.star');
-                    
+
                     stars.forEach(star => {
                         star.addEventListener('click', () => {
                             const ratingValue = parseInt(star.dataset.rating);
-                            
+
                             stars.forEach((s, index) => {
                                 if (index < ratingValue) {
                                     s.classList.add('active');
@@ -981,7 +1140,8 @@
                         star.addEventListener('mouseenter', () => {
                             const ratingValue = parseInt(star.dataset.rating);
                             stars.forEach((s, index) => {
-                                s.style.color = index < ratingValue ? '#fbbf24' : '#d1d5db';
+                                s.style.color = index < ratingValue ? '#fbbf24' :
+                                    '#d1d5db';
                             });
                         });
                     });
@@ -993,7 +1153,6 @@
                     });
                 });
 
-                // Review form submission
                 document.getElementById('reviewForm').addEventListener('submit', (e) => {
                     e.preventDefault();
                     this.submitReviews();
@@ -1002,12 +1161,12 @@
 
             async submitReviews() {
                 const reviews = [];
-                
+
                 document.querySelectorAll('.review-item').forEach(item => {
                     const productId = item.querySelector('.star-rating').dataset.productId;
                     const rating = item.querySelectorAll('.star.active').length;
                     const comment = item.querySelector('.comment-input').value.trim();
-                    
+
                     if (rating > 0) {
                         reviews.push({
                             product_id: parseInt(productId),
@@ -1029,16 +1188,18 @@
                             'Content-Type': 'application/json'
                         },
                         credentials: 'include',
-                        body: JSON.stringify({ reviews })
+                        body: JSON.stringify({
+                            reviews
+                        })
                     });
 
                     const data = await res.json();
-                    
+
                     if (data.success) {
                         this.showReviewSuccess();
                         setTimeout(() => {
                             this.closeReviewModal();
-                            this.loadOrders(); // Reload to show submitted reviews
+                            this.loadOrders();
                         }, 2000);
                     } else {
                         throw new Error(data.error || 'ไม่สามารถบันทึกรีวิวได้');
@@ -1097,7 +1258,6 @@
             }
         }
 
-        // Initialize order tracker
         const orderTracker = new OrderTracker();
     </script>
 </body>

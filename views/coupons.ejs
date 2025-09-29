@@ -13,12 +13,18 @@
 <body>
   <div class="coupon-container">
     <h2>🎟️ คูปองส่วนลดพิเศษ</h2>
+
+    <div class="back-btn-container">
+      <button class="btn-back" onclick="window.location.href='/'">← กลับหน้าหลัก</button>
+    </div>
+
     <div id="coupon-list">
       <div class="loading-container">
         <div class="loading-spinner"></div>
         <p>กำลังโหลดคูปองที่สามารถรับได้...</p>
       </div>
     </div>
+    <br><br><br>
   </div>
 
   <script>
@@ -155,7 +161,6 @@
             break;
         }
 
-        // Format expiry date
         const expiryDate = new Date(promotion.end_date);
         const formattedDate = expiryDate.toLocaleDateString('th-TH', {
           year: 'numeric',
@@ -240,7 +245,6 @@
 
 
     function showNotification(message, type = 'info') {
-      // Create notification element if it doesn't exist
       let notification = document.getElementById('notification');
       if (!notification) {
         notification = document.createElement('div');
@@ -262,7 +266,6 @@
         document.body.appendChild(notification);
       }
 
-      // Set background color based on type
       const colors = {
         success: 'linear-gradient(135deg, #28a745, #20c997)',
         error: 'linear-gradient(135deg, #dc3545, #c82333)',
@@ -272,16 +275,13 @@
       notification.style.background = colors[type] || colors.info;
       notification.textContent = message;
 
-      // Show notification
       notification.style.transform = 'translateX(0)';
 
-      // Auto hide after 4 seconds
       setTimeout(() => {
         notification.style.transform = 'translateX(100%)';
       }, 4000);
     }
 
-    // Initialize when page loads
     document.addEventListener('DOMContentLoaded', () => {
       new CouponManager();
     });

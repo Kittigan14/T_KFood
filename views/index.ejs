@@ -6,12 +6,10 @@
     <link rel="stylesheet" href="/css/style.css">
     <link rel="stylesheet" href="/css/notification.css">
     <title><%= title %></title>
-
 </head>
 
 <body>
-
-    <nav class="navbar fade-slide">
+    <nav class="navbar fade-slide" id="home">
         <div class="container flex-between">
             <div class="navbar-left">
                 <a href="/" class="logo">หน้าแรก</a>
@@ -37,7 +35,8 @@
                             width="24px"></button>
                     <div id="dropdownMenu" class="dropdown-content hidden">
                         <a href="/profile">แก้ไขข้อมูล</a>
-                        <a href="/orders">คำสั่งซื้อ</a>
+                        <a href="/orders">ติดตามคำสั่งซื้อ</a>
+                        <a href="/history">ประวัติการสั่งซื้อ</a>
                         <a href="/logout" class="logout">ออกจากระบบ</a>
                     </div>
                 </div>
@@ -51,10 +50,10 @@
 
     <!-- Banner -->
     <section class="banner fade-slide">
-        <div class="content-banner ">
+        <div class="content-banner">
             <h1>
-                ยินดีต้อนรับสู่ T&KFood<br>
-                ร้านอาหารที่คุณวางใจ
+                <span>T&KFood</span> <br>
+                 กินง่าย ได้ทุกวัน อร่อย คุ้มค่า ส่งไวถึงประตู
             </h1>
         </div>
     </section>
@@ -73,7 +72,7 @@
     </section>
 
     <!-- Products -->
-    <section class="container fade-slide">
+    <section class="container fade-slide" id="menu">
         <h2>เมนูทั้งหมด</h2>
         <div id="productList" class="product-grid">
             <% products.forEach(p => { %>
@@ -129,22 +128,39 @@
 
     <!-- Footer -->
     <footer class="footer fade-slide">
-        <div class="container">
-            <div class="footer-left">
-                <p class="title-footer">🍲 T&KFood</p>
-                <p>🏢 ที่อยู่: 123 ถนนหลัก กรุงเทพฯ</p>
-                <p>📞 เบอร์: 099-123-4567</p>
-                <p>🕘 9:00-19:00น. หยุดวันอาทิตย์</p>
-            </div>
-            <div class="footer-center">
-                <p>📧 Gmail: restaurant@example.com</p>
-                <p>💬 Line: @restaurant</p>
-            </div>
-            <div class="footer-right">
-                <p>ร้านอาหารคุณภาพ ส่งตรงถึงบ้าน พร้อมบริการที่เป็นมิตรและรวดเร็ว
-                    มาร่วมเป็นส่วนหนึ่งของครอบครัวเราได้เลย!</p>
-            </div>
+        <div class="footer-top">
+            <p class="title-footer">T&KFood</p>
         </div>
+
+        <center>
+
+            <div class="container">
+                <div class="footer-left">
+                    <h4>📌 ติดต่อเรา</h4>
+                    <p>📧 <a href="mailto:t_kfood.delivery@gmail.com">t_kfood.delivery@gmail.com</a></p>
+                    <p>💬 Line: <a href="#">@t_kfood</a></p>
+                    <p>📘 Facebook: <a href="#">T&K Food</a></p>
+                    <p>📷 Instagram: <a href="#">@tkfood</a></p>
+                </div>
+    
+                <div class="footer-center">
+                    <h4>📌 ติดต่อเรา</h4>
+                    <p>🕘 เปิดบริการทุกวัน 9:00 - 19:00 น. (หยุดวันอาทิตย์)</p>
+                    <p>🏢 123 ถนนหลัก เขตบางรัก กรุงเทพฯ 10500</p>
+                    <p>📞 099-123-4567</p>
+                </div>
+    
+                <div class="footer-right">
+                    <h4>🛒 เมนูลัด</h4>
+                    <ul>
+                        <li><a href="#home">หน้าแรก</a></li>
+                        <li><a href="#menu">เมนูอาหาร</a></li>
+                        <li><a href="/coupons">คูปองส่วนลด</a></li>
+                        <li><a href="/favorites">สินค้าที่ถูกใจ</a></li>
+                    </ul>
+                </div>
+            </div>
+        </center>
     </footer>
 
     <script>
@@ -180,10 +196,8 @@
                 });
             }
 
-            // Setup product list click handler
             setupProductClickHandler();
 
-            // Modal close events
             const productModal = document.getElementById("productModal");
             if (productModal) {
                 productModal.addEventListener("click", (e) => {
@@ -193,7 +207,6 @@
                 });
             }
 
-            // Escape key to close modal
             document.addEventListener("keydown", (e) => {
                 if (e.key === "Escape" && !productModal.classList.contains("hidden")) {
                     closeModal();
@@ -201,7 +214,6 @@
             });
         }
 
-        // Setup product click handler - separate function for reusability
         function setupProductClickHandler() {
             const productList = document.getElementById("productList");
             if (!productList) {
@@ -209,14 +221,12 @@
                 return;
             }
 
-            // Remove existing event listeners to prevent duplicates
             const newProductList = productList.cloneNode(true);
             productList.parentNode.replaceChild(newProductList, productList);
 
-            // Add click event listener to the new element
             newProductList.addEventListener("click", (e) => {
                 e.preventDefault();
-                console.log('Product list clicked', e.target); // Debug log
+                console.log('Product list clicked', e.target);
 
                 const card = e.target.closest(".product-card");
                 if (!card) {
@@ -224,7 +234,7 @@
                     return;
                 }
 
-                console.log('Product card found:', card); // Debug log
+                console.log('Product card found:', card);
 
                 const id = card.dataset.id;
                 const name = card.dataset.name;
@@ -236,7 +246,7 @@
                     name,
                     price,
                     image
-                }); // Debug log
+                });
 
                 if (!id || !name || !price || !image) {
                     console.error('Missing product data:', {
@@ -252,14 +262,13 @@
             });
         }
 
-        // Open product modal
         function openProductModal(id, name, price, image) {
             console.log('Opening modal with:', {
                 id,
                 name,
                 price,
                 image
-            }); // Debug log
+            });
 
             currentProductId = id;
 
@@ -283,21 +292,19 @@
             modalName.textContent = name;
             modalPrice.textContent = price + " บาท";
 
-            // Update button data-id attributes
             const cartBtn = document.querySelector('.btn-cart');
             const favoriteBtn = document.querySelector('.btn-favorite');
             if (cartBtn) cartBtn.dataset.id = id;
             if (favoriteBtn) favoriteBtn.dataset.id = id;
 
-            console.log('Modal elements updated, showing modal'); // Debug log
+            console.log('Modal elements updated, showing modal');
 
             productModal.classList.remove("hidden");
             document.body.style.overflow = "hidden";
 
-            console.log('Modal should be visible now'); // Debug log
+            console.log('Modal should be visible now');
         }
 
-        // Close modal
         function closeModal() {
             const productModal = document.getElementById("productModal");
             productModal.classList.add("hidden");
@@ -305,7 +312,6 @@
             currentProductId = null;
         }
 
-        // Update cart count
         async function updateCartCount() {
             try {
                 const response = await fetch('/api/cart/count');
@@ -320,7 +326,6 @@
             }
         }
 
-        // Update favorites count
         async function updateFavoritesCount() {
             try {
                 const response = await fetch('/api/favorites/count');
@@ -335,7 +340,6 @@
             }
         }
 
-        // Category filter
         function filterCategory(catId) {
             fetch(`/api/products?category_id=${catId}`)
                 .then(res => res.json())
@@ -392,11 +396,9 @@
                 list.appendChild(productCard);
             });
 
-            // Re-setup click handlers for new products
             setupProductClickHandler();
         }
 
-        // Animation functions
         function isInViewport(element) {
             const rect = element.getBoundingClientRect();
             return (
@@ -422,20 +424,23 @@
             });
         });
 
-        const observer2 = new IntersectionObserver(entries => {
+        const Faders = document.querySelectorAll('#productList .fade-slide');
+        const observer = new IntersectionObserver(entries => {
             entries.forEach(entry => {
                 if (entry.isIntersecting) {
-                productFaders.forEach((el, index) => {
-                    setTimeout(() => {
-                    el.classList.add('show');
-                    }, index * 150);
-                });
-                observer2.unobserve(entry.target);
+                    Faders.forEach((el, index) => {
+                        setTimeout(() => {
+                            el.classList.add('show');
+                        }, index * 150);
+                    });
+                    observer.unobserve(entry.target);
                 }
             });
-        }, { threshold: 0.2 });
+        }, {
+            threshold: 0.2
+        });
 
-        productFaders.forEach(el => observer2.observe(el));
+        Faders.forEach(el => observer.observe(el));
     </script>
 </body>
 

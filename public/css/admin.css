@@ -28,7 +28,6 @@ body {
     min-height: 100vh;
 }
 
-/* Sidebar */
 .admin-sidebar {
     width: 260px;
     background: var(--color-primary);
@@ -115,7 +114,6 @@ body {
     font-size: 16px;
 }
 
-/* Main Content */
 .admin-main {
     margin-left: 260px;
     flex: 1;
@@ -209,7 +207,6 @@ body {
     padding: 30px;
 }
 
-/* Content Sections */
 .content-section {
     display: none;
 }
@@ -231,7 +228,6 @@ body {
     color: var(--color-primary);
 }
 
-/* Stats Grid */
 .stats-grid {
     display: grid;
     grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
@@ -268,7 +264,6 @@ body {
     color: var(--color-primary);
 }
 
-/* Tables */
 .table-container {
     background: var(--color-background);
     border-radius: var(--border-radius);
@@ -331,7 +326,6 @@ th {
     box-shadow: 0 4px 15px var(--shadow-soft);
 }
 
-/* Modal */
 .modal {
     display: none;
     position: fixed;
@@ -396,7 +390,6 @@ th {
     margin-bottom: 25px;
 }
 
-/* Forms */
 .form-group {
     margin-bottom: 20px;
 }
@@ -471,7 +464,6 @@ th {
     transform: translateY(0);
 }
 
-/* Filter Bar */
 .filter-bar {
     display: flex;
     gap: 15px;
@@ -489,12 +481,12 @@ th {
     min-width: 150px;
 }
 
-/* Status badges */
 .status-badge {
     padding: 5px 10px;
     border-radius: 20px;
     font-size: 12px;
     font-weight: 600;
+    margin-right: 20px;
 }
 
 .status-pending {
@@ -545,7 +537,6 @@ th {
     border: 1px solid #f5c6cb;
 }
 
-/* Notification */
 .notification {
     position: fixed;
     top: 20px;
@@ -570,7 +561,6 @@ th {
     background: #e74c3c;
 }
 
-/* Recent orders */
 .recent-orders {
     background: var(--color-background);
     padding: 25px;
@@ -598,7 +588,6 @@ th {
     border-bottom: none;
 }
 
-/* Order details modal specific styles */
 .order-modal-content {
     max-width: 800px;
 }
@@ -677,7 +666,6 @@ th {
     margin-bottom: 25px;
 }
 
-/* Responsive Design */
 @media (max-width: 768px) {
     .admin-sidebar {
         width: 100%;
@@ -730,13 +718,6 @@ th {
     }
 }
 
-/* radius: 4px;
-        box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
-        z-index: 10000;
-        transform: translateX(400px);
-        transition: transform 0.3s;
-        } */
-
 .notification.show {
     transform: translateX(0);
 }
@@ -745,7 +726,6 @@ th {
     background: #e74c3c;
 }
 
-/* Recent orders */
 .recent-orders {
     background: white;
     padding: 20px;
@@ -765,7 +745,6 @@ th {
     border-bottom: none;
 }
 
-/* Order details modal specific styles */
 .order-modal-content {
     max-width: 800px;
 }

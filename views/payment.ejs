@@ -466,7 +466,6 @@
           });
         });
 
-        // Auto-fill amount for cash payments
         const amountInput = document.getElementById('paymentAmount');
         amountInput.addEventListener('input', () => {
           this.validateAmount();
@@ -474,13 +473,11 @@
       }
 
       selectPaymentMethod(method) {
-        // Remove previous selections
         document.querySelectorAll('.payment-option').forEach(opt => {
           opt.classList.remove('selected');
           opt.querySelector('input[type="radio"]').checked = false;
         });
 
-        // Select current method
         const selectedOption = document.querySelector(`[data-method="${method}"]`);
         selectedOption.classList.add('selected');
         selectedOption.querySelector('input[type="radio"]').checked = true;
@@ -596,7 +593,6 @@
         const payButtonText = document.getElementById('payButtonText');
         const payButtonLoading = document.getElementById('payButtonLoading');
         
-        // Show loading state
         payButton.disabled = true;
         payButtonText.style.display = 'none';
         payButtonLoading.classList.add('show');
@@ -631,7 +627,6 @@
           console.error('Payment error:', err);
           this.showError('เกิดข้อผิดพลาดในการชำระเงิน: ' + err.message);
           
-          // Reset button state
           payButton.disabled = false;
           payButtonText.style.display = 'inline';
           payButtonLoading.classList.remove('show');
@@ -647,9 +642,9 @@
             <h3>ชำระเงินสำเร็จ</h3>
             <p>ขอบคุณสำหรับการชำระเงิน คำสั่งซื้อของคุณได้รับการยืนยันแล้ว</p>
             <div class="order-id-display">คำสั่งซื้อ #${this.orderData.order_id}</div>
-            <p>คุณสามารถติดตามสถานะการจัดส่งได้ที่หน้าประวัติการสั่งซื้อ</p>
+            <p>ร้านอาหารได้รับคำสั่งซื้อแล้วและกำลังเตรียมอาหารให้คุณ</p>
             <div class="payment-actions">
-              <a href="/orders" class="btn btn-primary">ดูประวัติการสั่งซื้อ</a>
+              <a href="/orders" class="btn btn-primary">ติดตามคำสั่งซื้อ</a>
               <a href="/" class="btn btn-secondary">กลับหน้าแรก</a>
             </div>
           </div>
@@ -680,7 +675,6 @@
       }
     }
 
-    // Initialize payment processor
     const paymentProcessor = new PaymentProcessor();
   </script>
 </body>

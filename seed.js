@@ -71,69 +71,150 @@ const products = [
 
 const promotions = [
   ['ส่วนลด 20%', 'ลด 20% สำหรับการสั่งซื้อครั้งแรก', 'percentage', 20, null, null, 200, 100, 100, 1, 'NEW20'],
-  ['ลด 50 บาท', 'ลดทันที 50 บาท เมื่อสั่งอาหารครบ 300 บาท', 'fixed_amount', 50, null, null, 300, null, null, null, 'SAVE50']
+  ['ลด 50 บาท', 'ลดทันที 50 บาท เมื่อสั่งอาหารครบ 300 บาท', 'fixed_amount', 50, null, null, 300, null, null, null, 'SAVE50'],
+  ['ลด 10% ทุกเมนู', 'ส่วนลด 10% สำหรับการสั่งซื้อทุกประเภท', 'percentage', 10, null, null, null, null, null, null, 'SUMMER24'],
+  ['ส่วนลด 20 บาท', 'ลด 20 บาท เมื่อสั่งเมนูข้าว', 'fixed_amount', 20, null, null, null, null, null, null, 'FOODIE20']
+];
+
+const admins = [
+  {
+    name: "AdminTester",
+    email: "admin1@tkfood.com",
+    password: "admin123",
+    phone: "0911111111",
+    role: "admin"
+  }
+];
+
+const employees = [
+  { name: "สุรชัย ใจดี", email: "surachai.j@tkfood.com", phone: "081-123-4567", position: "Food Delivery", salary: 15000, hire_date: "2024-01-15" },
+  { name: "วิชัย สมัครงาน", email: "vichai.s@tkfood.com", phone: "089-987-6543", position: "Food Delivery", salary: 15000, hire_date: "2024-02-20" },
+  { name: "สมหญิง รักสงบ", email: "somyin.r@tkfood.com", phone: "090-000-1111", position: "Food Delivery", salary: 15000, hire_date: "2024-03-10" }
 ];
 
 function insertCategories() {
-  const stmt = db.prepare("INSERT OR IGNORE INTO Categories (category_id, name) VALUES (?, ?)");
-  categories.forEach(cat => stmt.run([cat.id, cat.name]));
-  stmt.finalize();
-  console.log("✅ Categories inserted.");
+  return new Promise((resolve, reject) => {
+    const stmt = db.prepare("INSERT OR IGNORE INTO Categories (category_id, name) VALUES (?, ?)");
+    categories.forEach(cat => stmt.run([cat.id, cat.name]));
+    stmt.finalize((err) => {
+      if (err) reject(err);
+      else {
+        console.log("✅ Categories inserted.");
+        resolve();
+      }
+    });
+  });
 }
 
 function insertProducts() {
-  const stmt = db.prepare("INSERT OR IGNORE INTO Products (name, description, price, category_id, image_url) VALUES (?, ?, ?, ?, ?)");
-  products.forEach(p => stmt.run([p.name, p.description, p.price, p.category_id, p.image_url]));
-  stmt.finalize();
-  console.log("✅ Products inserted.");
+  return new Promise((resolve, reject) => {
+    const stmt = db.prepare("INSERT OR IGNORE INTO Products (name, description, price, category_id, image_url) VALUES (?, ?, ?, ?, ?)");
+    products.forEach(p => stmt.run([p.name, p.description, p.price, p.category_id, p.image_url]));
+    stmt.finalize((err) => {
+      if (err) reject(err);
+      else {
+        console.log("✅ Products inserted.");
+        resolve();
+      }
+    });
+  });
 }
 
 function insertPromotions() {
-  const stmt = db.prepare(`
-    INSERT OR REPLACE INTO Promotions 
-    (name, description, type, discount_value, buy_quantity, get_quantity, min_order_amount, max_discount_amount, usage_limit, usage_per_customer, start_date, end_date, status, promo_code) 
-    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, datetime('now'), datetime('now', '+1 year'), 'active', ?)
-  `);
-  promotions.forEach(promo => stmt.run(promo));
-  stmt.finalize();
-
-  db.run(`INSERT OR IGNORE INTO Promotion_Categories (promotion_id, category_id) VALUES (5, 7)`);
-  console.log("✅ Promotions inserted.");
+  return new Promise((resolve, reject) => {
+    const stmt = db.prepare(`
+      INSERT OR REPLACE INTO Promotions 
+      (name, description, type, discount_value, buy_quantity, get_quantity, min_order_amount, max_discount_amount, usage_limit, usage_per_customer, start_date, end_date, status, promo_code) 
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, datetime('now'), datetime('now', '+1 year'), 'active', ?)
+    `);
+    promotions.forEach(promo => stmt.run(promo));
+    stmt.finalize((err) => {
+      if (err) reject(err);
+      else {
+        db.run(`INSERT OR IGNORE INTO Promotion_Categories (promotion_id, category_id) VALUES (5, 7)`, (err2) => {
+          console.log("✅ Promotions inserted.");
+          resolve();
+        });
+      }
+    });
+  });
 }
 
 function insertAdmin() {
-  const admin = {
-    name: "AdminJohn",
-    email: "admin@tkfood.com",
-    password: "admin123",
-    phone: "0999999999",
-    role: "admin"
-  };
+  return new Promise((resolve, reject) => {
+    const stmt = db.prepare(`
+      INSERT OR IGNORE INTO Users (name, email, password, phone, role)
+      VALUES (?, ?, ?, ?, ?)
+    `);
 
-  const hashedPassword = bcrypt.hashSync(admin.password, 10);
+    admins.forEach(admin => {
+      const hashedPassword = bcrypt.hashSync(admin.password, 10);
+      stmt.run([admin.name, admin.email, hashedPassword, admin.phone, admin.role]);
+    });
 
-  const stmt = db.prepare(`
-    INSERT OR IGNORE INTO Users (name, email, password, phone, role)
-    VALUES (?, ?, ?, ?, ?)
-  `);
-
-  stmt.run([admin.name, admin.email, hashedPassword, admin.phone, admin.role]);
-  stmt.finalize();
-
-  console.log("✅ Admin user inserted (email: " + admin.email + ")");
+    stmt.finalize((err) => {
+      if (err) reject(err);
+      else {
+        console.log(`✅ Admin user inserted`);
+        resolve();
+      }
+    });
+  });
 }
 
-db.serialize(() => {
-  insertCategories();
-  insertProducts();
-  insertPromotions();
-  insertAdmin();
-  
-  // setTimeout(() => {
-  //   insertSampleCustomerCoupons();
-  // }, 100);
-});
+function insertEmployees() {
+  return new Promise((resolve, reject) => {
+    const stmt = db.prepare(`
+      INSERT OR IGNORE INTO Employees (name, email, phone, position, salary, hire_date)
+      VALUES (?, ?, ?, ?, ?, ?)
+    `);
 
-setTimeout(() => {
-  db.close(() => console.log("✅ Database closed."));
-}, 500);
+    employees.forEach(emp => {
+      stmt.run([emp.name, emp.email, emp.phone, emp.position, emp.salary, emp.hire_date]);
+    });
+
+    stmt.finalize((err) => {
+      if (err) reject(err);
+      else {
+        console.log("✅ Employee data inserted.");
+        resolve();
+      }
+    });
+  });
+}
+
+async function runSeed() {
+  try {
+    await insertCategories();
+    await insertProducts();
+    await insertPromotions();
+    await insertAdmin();
+    await insertEmployees();
+    
+    return new Promise((resolve) => {
+      setTimeout(() => {
+        db.close(() => {
+          console.log("✅ Seed database closed.");
+          resolve();
+        });
+      }, 500);
+    });
+  } catch (err) {
+    console.error("❌ Seed error:", err);
+    throw err;
+  }
+}
+
+if (require.main === module) {
+  runSeed()
+    .then(() => {
+      console.log("✅ Seed completed!");
+      process.exit(0);
+    })
+    .catch(err => {
+      console.error("❌ Seed failed:", err);
+      process.exit(1);
+    });
+}
+
+module.exports = { runSeed };

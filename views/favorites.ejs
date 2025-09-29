@@ -150,7 +150,6 @@
           </div>
         `;
 
-        // Add event listeners
         this.container.querySelectorAll('.remove-btn').forEach(btn => {
           btn.addEventListener('click', this.handleRemove.bind(this));
         });
@@ -166,16 +165,13 @@
         const row = button.closest('tr');
         const productName = row.querySelector('.product-name').textContent;
 
-        // Confirm removal
         if (!confirm(`คุณต้องการลบ "${productName}" ออกจากรายการโปรดหรือไม่?`)) {
           return;
         }
 
-        // Disable button during removal
         button.disabled = true;
         button.textContent = 'กำลังลบ...';
 
-        // Add removal animation
         row.style.transition = 'all 0.3s ease';
         row.style.transform = 'translateX(-100%)';
         row.style.opacity = '0';
@@ -196,19 +192,14 @@
 
           setTimeout(() => {
             row.remove();
-
-            // Update local data
             this.favoritesData = this.favoritesData.filter(item => item.product_id != itemId);
-
             this.showNotification(data.message || 'ลบออกจากรายการโปรดเรียบร้อย', 'success');
 
-            // Update header count
             const headerElement = document.querySelector('.favorites-header p');
             if (headerElement) {
               headerElement.textContent = `คุณมีสินค้าที่ชื่นชอบ ${this.favoritesData.length} รายการ`;
             }
 
-            // Check if favorites list is now empty
             if (this.favoritesData.length === 0) {
               this.renderEmpty();
             }
@@ -216,7 +207,6 @@
 
         } catch (err) {
           console.error('Error removing favorite:', err);
-          // Revert animation
           row.style.transform = 'translateX(0)';
           row.style.opacity = '1';
           button.disabled = false;
@@ -231,7 +221,6 @@
         const row = button.closest('tr');
         const productName = row.querySelector('.product-name').textContent;
 
-        // Disable button during add to cart
         button.disabled = true;
         const originalText = button.textContent;
         button.textContent = 'กำลังเพิ่ม...';
@@ -255,16 +244,41 @@
             throw new Error(data.error || 'เกิดข้อผิดพลาดในการเพิ่มสินค้าลงตะกร้า');
           }
 
-          this.showNotification(`เพิ่ม "${productName}" ลงตะกร้าเรียบร้อย`, 'success');
+          const resRemove = await fetch(`/api/favorites/remove/${itemId}`, {
+            method: 'DELETE',
+            headers: {
+              'Accept': 'application/json'
+            }
+          });
+
+          const removeData = await resRemove.json();
+          if (!resRemove.ok || !removeData.success) {
+            throw new Error(removeData.error || 'เพิ่มสำเร็จ แต่ลบออกจากรายการโปรดไม่สำเร็จ');
+          }
+
+          row.remove();
+          this.favoritesData = this.favoritesData.filter(item => item.product_id != itemId);
+
+          const headerElement = document.querySelector('.favorites-header p');
+          if (headerElement) {
+            headerElement.textContent = `คุณมีสินค้าที่ชื่นชอบ ${this.favoritesData.length} รายการ`;
+          }
+
+          if (this.favoritesData.length === 0) {
+            this.renderEmpty();
+          }
+
+          this.showNotification(`เพิ่ม "${productName}" ลงตะกร้าและนำออกจากสินค้าที่ถูกใจแล้ว ✅`, 'success');
 
         } catch (err) {
-          console.error('Error adding to cart:', err);
-          this.showNotification('เกิดข้อผิดพลาดในการเพิ่มสินค้า: ' + err.message, 'error');
+          console.error('Error adding to cart and removing favorite:', err);
+          this.showNotification('เกิดข้อผิดพลาด: ' + err.message, 'error');
         } finally {
           button.disabled = false;
           button.textContent = originalText;
         }
       }
+
 
       showNotification(message, type = 'info') {
         const notification = document.getElementById('notification');
@@ -282,7 +296,6 @@
       }
     }
 
-    // Initialize favorites page when DOM loads
     document.addEventListener('DOMContentLoaded', () => {
       new FavoritesPage();
     });
