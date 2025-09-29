@@ -83,7 +83,7 @@ const admins = [
     password: "123123",
     phone: "0911111111",
     role: "admin"
-  }
+  },
 ];
 
 const employees = [

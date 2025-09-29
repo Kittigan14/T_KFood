@@ -584,7 +584,7 @@
                         <span class="status-badge status-${order.order_status}">
                         ${order.order_status}
                         </span>
-                        <strong>${(order.final_amount + 25 || 0).toLocaleString("th-TH")} บาท</strong>
+                        <strong>${(order.final_amount || 0).toLocaleString("th-TH")} บาท</strong>
                     </div>
                     </div>
                 `).join("");
@@ -929,7 +929,7 @@
                     <tr>
                         <td>${order.order_id}</td>
                         <td>${order.customer_name}</td>
-                        <td>${order.final_amount + 25 !== undefined ? order.final_amount + 25 + ' บาท' : '-'}</td>
+                        <td>${order.final_amount !== undefined ? order.final_amount + ' บาท' : '-'}</td>
                         <td>
                             <span class="status-badge status-${order.order_status}">
                                 ${order.order_status}
