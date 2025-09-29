@@ -2029,7 +2029,7 @@ app.get("/api/admin/stats", authenticateAdmin, (req, res) => {
         stats.total_members = row3?.total_members || 0;
 
         db.get(
-          `SELECT IFNULL(SUM(final_amount - 25), 0) as revenue_today
+          `SELECT IFNULL(SUM(final_amount + 25), 0) as revenue_today
            FROM Orders 
            WHERE strftime('%Y-%m-%d', created_at) = strftime('%Y-%m-%d', 'now', 'localtime')
              AND order_status = 'completed'`,

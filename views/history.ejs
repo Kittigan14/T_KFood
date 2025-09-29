@@ -48,7 +48,7 @@
           </div>
 
           <p><strong>วันที่:</strong> ${new Date(order.created_at).toLocaleDateString("th-TH")}</p>
-          <p><strong>ยอดรวม:</strong> ${(order.final_amount - 25 || 0).toLocaleString()} บาท</p>
+          <p><strong>ยอดรวม:</strong> ${(order.final_amount + 25 || 0).toLocaleString()} บาท</p>
           ${order.employee_name ? `<p><strong>ผู้จัดส่ง:</strong> ${order.employee_name}</p>` : ''}
 
           <div class="order-items">
